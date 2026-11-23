@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="ru">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#eeeae0">
+<title>Оттиск · BLUE</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="style.css">
+<main>
+  <canvas id="room" tabindex="0" aria-label="Первый уровень, Противовес. Ведите мышью, пальцем или стрелками. Впитывайте капли чернил, чтобы увеличить вес и толкать груз. Удерживайте левую кнопку мыши или пробел, чтобы сбрасывать чернила."></canvas>
+  <header><div><h1>Оттиск</h1><p class="level-name">1. Противовес</p></div><div class="controls">
+    <button id="sound" aria-label="Включить звук" aria-pressed="false" title="Включить звук"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9h4l5-4v14l-5-4H3z"/><path class="waves" d="M15.5 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14"/><path class="mute" d="m16 9 5 6m0-6-5 6"/></svg></button>
+    <button id="reset" title="Начать заново (R)" aria-label="Начать заново">↺</button></div></header>
+  <footer><span id="objective" aria-live="polite">Впитайте капли, чтобы легче толкать груз</span><span id="hint">Зажмите ЛКМ, чтобы сбросить чернила</span></footer>
+  <dialog id="completion" aria-labelledby="completion-title">
+    <h2 id="completion-title">«Противовес» пройден</h2>
+    <button id="replay" autofocus>Сыграть ещё раз</button>
+  </dialog>
+</main>
+<script src="physics.js"></script>
+<script src="audio.js"></script>
+<script src="game.js"></script>
+</html>
