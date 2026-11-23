@@ -23,3 +23,11 @@ python -m http.server 8041 --directory ottisk/dist
 ```sh
 python -m pip install pillow numpy imageio-ffmpeg
 ```
+
+Минутное вступление моделируется и анимируется вручную в Blender 5.3. Сцена хранится в `ottisk/exports/opening-scene.blend`. Для рендера используется Cycles с OptiX.
+
+```sh
+python ottisk/tools/render_intro60.py --assets
+blender --background --python ottisk/tools/blender_opening.py -- --render
+python ottisk/tools/assemble_opening.py
+```
