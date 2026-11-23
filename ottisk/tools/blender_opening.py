@@ -242,8 +242,8 @@ def make_hand(name,press=False):
 
 
 loading_hand=make_hand("Loading hand")
-for t,loc in [(0,(6,1.0,6.5)),(3,(5.5,1.0,6.4)),(4.4,(1.36,1.0,5.50)),
-              (8.4,(1.36,1.0,4.30)),(9,(1.36,1.0,4.30)),(11,(5.7,1.0,5.4)),(60,(6,1,6.5))]:
+for t,loc in [(0,(6,1.2,6.5)),(3,(5.5,1.2,6.4)),(4.4,(1.36,1.2,5.50)),
+              (8.4,(1.36,1.2,4.30)),(9,(1.36,1.2,4.30)),(11,(5.7,1.2,5.4)),(60,(6,1.2,6.5))]:
     key(loading_hand,"location",t,loc)
 loading_hand.rotation_euler=(math.radians(8),math.radians(-8),math.radians(4))
 press_hand=make_hand("Pressing hand",True)
@@ -258,7 +258,7 @@ loading_sheet=bpy.data.objects.new("Loaded blank paper",mesh);scene.collection.o
 attach(loading_sheet,paper_plain)
 solid=loading_sheet.modifiers.new("Paper thickness","SOLIDIFY");solid.thickness=.006
 for t,z in [(0,7),(3,6.5),(4.4,2.7),(8.4,1.50),(15,1.50),(21,-2.0),(60,-2.0)]:
-    key(loading_sheet,"location",t,(0,1.22,z))
+    key(loading_sheet,"location",t,(0,.98,z))
 
 # Paper and marks are shaded together so the printing has real shadows.
 paper=material("Printed paper",(.86,.85,.77),.91,grain=True)
@@ -373,7 +373,7 @@ scene.render.filepath=str(BUILD/"blender-frames"/"frame_")
 (BUILD/"blender-frames").mkdir(exist_ok=True)
 bpy.ops.wm.save_as_mainfile(filepath=str(ROOT/"exports"/"opening-scene.blend"))
 if "--benchmark" in sys.argv:
-    scene.frame_set(1440)
+    scene.frame_set(194)
     scene.render.filepath=str(BUILD/"blender-final-preview.png")
     bpy.ops.render.render(write_still=True)
 elif "--cycles-test" in sys.argv:
