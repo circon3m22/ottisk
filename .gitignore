@@ -5,3 +5,5 @@
 **/*.blend1
 .DS_Store
 Thumbs.db
+ottisk/dist/browser-tests.js
+ottisk/dist/browser-check.html

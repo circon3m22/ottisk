@@ -19,46 +19,29 @@ function roundedLoop(corners) {
   return {vertices, left:Math.min(...xs), right:Math.max(...xs), top:Math.min(...ys), bottom:Math.max(...ys)};
 }
 
-const worldSize={width:1260,height:3300};
-const rocks = [
-  [[-120,526],[174,535],[225,594],[220,1260],[180,1370],[-120,1375]],
-  [[995,592],[1030,531],[1380,520],[1380,1375],[1040,1370],[997,1280]],
-  [[186,672],[602,667],[694,706],[690,752],[629,782],[190,778]],
-  [[480,928],[541,900],[1050,915],[1065,1024],[550,1027],[481,994]],
-  [[192,1156],[555,1145],[652,1181],[650,1224],[592,1254],[193,1247]],
-  [[651,1430],[1015,1390],[1117,1464],[1060,1557],[689,1550],[650,1512]],
-  [[43,1496],[148,1460],[197,1507],[169,1606],[53,1634]],
-  [[1013,1795],[1150,1751],[1235,1839],[1170,1940],[1061,1912]],
-  [[-100,2110],[143,2096],[329,2112],[513,2097],[570,2100],[570,2214],[511,2228],[303,2213],[98,2235],[-100,2232]],
-  [[622,2100],[679,2090],[821,2105],[1062,2084],[1380,2104],[1380,2238],[1100,2218],[902,2233],[688,2222],[622,2218]],
-  [[42,2382],[153,2312],[230,2378],[205,2518],[73,2571],[35,2490]],
-  [[653,2348],[1021,2303],[1140,2426],[1066,2538],[758,2521],[621,2460]],
-  [[-100,2700],[361,2684],[596,2711],[613,2764],[556,2812],[-100,2801]],
-  [[788,2908],[845,2872],[1380,2891],[1380,3004],[841,2994],[779,2957]]
-].map(roundedLoop);
-const spawn={x:590,y:190}, railStart={x:450,y:1640}, socket={x:850,y:1890};
+const {worldSize,spawn,railStart,socket,plate,well,passage}=topoLayout;
+const rocks=[heightMap.collider];
 const turnRadius=46, elbow=socket.x-railStart.x-turnRadius;
 const arcLength=Math.PI*turnRadius/2;
 const railSign=Math.sign(socket.y-railStart.y)||-1;
 const railLength=elbow+arcLength+Math.abs(railStart.y-socket.y)-turnRadius;
-const plate={x:320,y:2420}, well={x:820,y:3120};
-const limits = {left:34,right:1220,top:38,bottom:3260};
+const limits = {left:34,right:worldSize.width-40,top:38,bottom:worldSize.height-40};
 const requiredInk=.52;
-const passage={x:596,y:2160,left:570,right:622,top:2100,bottom:2232,maxRadius:35.4};
-const gateBarrier=roundedLoop([[567,2100],[625,2100],[625,2116],[567,2116]]);
-const sizeBarrier=roundedLoop([[567,2110],[625,2110],[625,2124],[567,2124]]);
 const barriers=[];
 const colliders=()=>rocks.concat(barriers);
-function railPoint(s){
-  if(s<elbow)return {x:railStart.x+s,y:railStart.y,tx:1,ty:0};
-  if(s<elbow+arcLength){
-    const a=(s-elbow)/turnRadius;
-    return {x:socket.x-turnRadius+Math.sin(a)*turnRadius,y:railStart.y+railSign*turnRadius-railSign*Math.cos(a)*turnRadius,tx:Math.cos(a),ty:railSign*Math.sin(a)};
-  }
-  return {x:socket.x,y:railStart.y+railSign*(turnRadius+s-elbow-arcLength),tx:0,ty:railSign};
+function createRail(start,finish){
+  const bend=46,straight=finish.x-start.x-bend,arc=Math.PI*bend/2,sign=Math.sign(finish.y-start.y)||1;
+  return {start,finish,length:straight+arc+Math.abs(finish.y-start.y)-bend,point(s){
+    if(s<straight)return {x:start.x+s,y:start.y,tx:1,ty:0};
+    if(s<straight+arc){const a=(s-straight)/bend;return {x:finish.x-bend+Math.sin(a)*bend,y:start.y+sign*bend-sign*Math.cos(a)*bend,tx:Math.cos(a),ty:sign*Math.sin(a)};}
+    return {x:finish.x,y:start.y+sign*(bend+s-straight-arc),tx:0,ty:sign};
+  }};
 }
+const mainRail=createRail(railStart,socket);
+function railPoint(s){return mainRail.point(s);}
 
 function expel(p,rock,clearance=0) {
+  if(rock.terrain){rock.terrain.collide(p,clearance);return;}
   if(p.x<rock.left-clearance || p.x>rock.right+clearance ||
      p.y<rock.top-clearance || p.y>rock.bottom+clearance) return;
   const vs=rock.vertices;
@@ -78,19 +61,21 @@ function expel(p,rock,clearance=0) {
   }
 }
 
-// A heavy roller runs in a right-angle groove. At the elbow the player
-// must apply pressure along the new axis before it will move again.
+// The round printing weight follows a tangent-continuous curved guide.
 class Counterweight {
-  constructor(){
-    this.position=0;this.speed=0;this.x=railStart.x;this.y=railStart.y;this.radius=35;
+  constructor(options={}){
+    this.rail=options.rail||mainRail;this.minimumInk=options.minimumInk??requiredInk;
+    this.lockAtEnd=options.lockAtEnd!==false;
+    this.position=0;this.speed=0;this.x=this.rail.start.x;this.y=this.rail.start.y;this.radius=options.radius||35;
     this.loadX=0;this.loadY=0;this.strain=0;this.locked=false;
   }
   guidePush(body,target){
+    if(this.locked)return target;
     // Traction on a deliberate shove keeps small gait oscillations from
     // rolling the mouse off the curved rim. Tangential input releases it.
     const x=this.x-body.x,y=this.y-body.y;
     if(Math.hypot(x,y)>this.radius+body.bodyRadius+12)return target;
-    const {tx,ty}=railPoint(this.position),nx=-ty,ny=tx;
+    const {tx,ty}=this.rail.point(this.position),nx=-ty,ny=tx;
     const along=x*tx+y*ty,across=x*nx+y*ny;
     const alongAim=(target.x-body.x)*tx+(target.y-body.y)*ty;
     const sideAim=(target.x-body.x)*nx+(target.y-body.y)*ny;
@@ -106,22 +91,23 @@ class Counterweight {
     if(margin===0){this.loadX-=shiftX;this.loadY-=shiftY;}
   }
   advance(ink=0){
-    const tangent=railPoint(this.position);
+    const tangent=this.rail.point(this.position);
     const pressure=this.loadX*tangent.tx+this.loadY*tangent.ty;
     this.strain+=(clamp(Math.abs(pressure)/7,0,1)-this.strain)*.08;
-    if(this.locked||ink<requiredInk){this.speed=0;return;}
-    const strength=.12+2.4*ink;
+    if(this.locked||ink<this.minimumInk){this.speed=0;return;}
+    const strength=.12+2.4*ink+(this.minimumInk===0?.85:0);
     const acceleration=Math.sign(pressure)*Math.max(0,Math.abs(pressure)-.22)*230*strength;
-    const maxSpeed=9+141*ink;
+    const maxSpeed=9+141*ink+(this.minimumInk===0?50:0);
     this.speed=clamp((this.speed+acceleration*stepTime)*.95,-maxSpeed,maxSpeed);
     if(Math.abs(this.speed)<.6 && Math.abs(acceleration)<4)this.speed=0;
-    let next=clamp(this.position+this.speed*stepTime,0,railLength);
-    if(next===0 || next===railLength)this.speed=0;
-    if(next>=railLength-5){next=railLength;this.speed=0;this.locked=true;}
+    let next=clamp(this.position+this.speed*stepTime,0,this.rail.length);
+    if(next===0 || next===this.rail.length)this.speed=0;
+    if(next>=this.rail.length-5&&this.speed>=0){next=this.rail.length;this.speed=0;if(this.lockAtEnd)this.locked=true;}
     this.position=next;
-    const point=railPoint(next);this.x=point.x;this.y=point.y;
+    const point=this.rail.point(next);this.x=point.x;this.y=point.y;
   }
-  get seated(){return this.locked;}
+  get seated(){return this.locked||(!this.lockAtEnd&&this.position>=this.rail.length-4&&Math.abs(this.speed)<5);}
+  get atStart(){return this.position<4&&Math.abs(this.speed)<5;}
 }
 
 class InkDrop {
@@ -144,6 +130,7 @@ class InkDrop {
     if(distance>range)return;
     // Capillary motion acts across exposed paper, stopping at a stone edge.
     for(const rock of colliders()){
+      if(rock.terrain){if(rock.terrain.lineBlocked(this.x,this.y,other.x,other.y))return;continue;}
       if(Math.max(this.x,other.x)<rock.left||Math.min(this.x,other.x)>rock.right||
          Math.max(this.y,other.y)<rock.top||Math.min(this.y,other.y)>rock.bottom)continue;
       const vertices=rock.vertices;
@@ -175,6 +162,8 @@ class InkDrop {
     this.vx+=(other.vx-this.vx)*share;this.vy+=(other.vy-this.vy)*share;
     this.x=x;this.y=y;this.amount=sum;
     this.rounding=.45;
+    this.collectDelay=Math.max(this.collectDelay||0,other.collectDelay||0);
+    this.needsSeparation=Boolean(this.needsSeparation||other.needsSeparation);
     this.age=Math.min(this.age,other.age);other.amount=0;
   }
   radialSize(dx,dy,scale){
@@ -191,12 +180,13 @@ class InkDrop {
     this.rounding+=(.84-this.rounding)*(1-Math.exp(-3.8*dt));
     const dx=mouse.x-this.x,dy=mouse.y-this.y,d=Math.hypot(dx,dy);
     const touching=d<mouse.bodyRadius+r+9;
-    const take=collecting && touching && mouse.ink<1 && this.amount>0;
+    if(this.needsSeparation&&d>mouse.bodyRadius+r+20)this.needsSeparation=false;
+    const take=collecting && touching && !this.needsSeparation && this.age>=(this.collectDelay||0) && mouse.ink<1 && this.amount>0;
     if(take){
       const amount=Math.min(this.amount,1-mouse.ink,.5*dt);
       this.amount-=amount;mouse.ink+=amount;mouse.absorbing=1;
       this.vx+=dx*35*dt;this.vy+=dy*35*dt;
-    }else if(touching&&d>.01){
+    }else if(touching&&d>.01&&!this.inBasin){
       const pressure=Math.max(0,mouse.bodyRadius+r-d);
       this.vx-=dx/d*pressure*18*dt;this.vy-=dy/d*pressure*18*dt;
     }
@@ -247,6 +237,7 @@ class Tail {
     return {x:body.x+.83*(hipX-body.x),y:body.y+.83*(hipY-body.y),angle};
   }
   advance(body,weight){
+    const weights=Array.isArray(weight)?weight:weight?[weight]:[];
     const points=this.points, base=this.attachment(body);
     const hipTravel=Math.hypot(base.x-points[0].x,base.y-points[0].y);
     const sliding=clamp(hipTravel/this.spacing,0,1);
@@ -285,7 +276,7 @@ class Tail {
         p.x+=fixX*(1-share);p.y+=fixY*(1-share);
         if(i>1)expel(p,shell,p.width*.5);
         for(const rock of nearby)expel(p,rock,p.width);
-        if(weight)weight.contact(p,p.width);
+        for(const object of weights)object.contact(p,p.width);
         p.x=clamp(p.x,limits.left+p.width,limits.right-p.width);
         p.y=clamp(p.y,limits.top+p.width,limits.bottom-p.width);
         heading=Math.atan2(p.y-parent.y,p.x-parent.x);
@@ -294,18 +285,18 @@ class Tail {
   }
 }
 class Drop {
-  constructor(x,y) {
+  constructor(x,y,initialInk=0) {
     this.x=x;this.y=y;this.vx=0;this.vy=0;this.heading=.12;
     this.stride=0;
-    this.ink=0;
-    this.bodyRadius=radius;
+    this.ink=initialInk;
+    this.bodyRadius=radius*Math.sqrt(1+1.3*initialInk);
     this.absorbing=0;
     this.shedding=false;
     this.effort=0;
     this.trailingHeading=this.heading;
     this.nodes=Array.from({length:28},(_,i)=>{
       const a=i*TAU/28,dx=Math.cos(a),dy=Math.sin(a);
-      return {dx,dy,x:x+dx*radius,y:y+dy*radius,vx:0,vy:0};
+      return {dx,dy,x:x+dx*this.bodyRadius,y:y+dy*this.bodyRadius,vx:0,vy:0};
     });
     this.restArea=28*Math.sin(TAU/28)*radius*radius/2;
     this.tail=new Tail(this);
@@ -316,11 +307,12 @@ class Drop {
     this.x/=this.nodes.length;this.y/=this.nodes.length;
   }
   advance(target,weight) {
+    const weights=Array.isArray(weight)?weight:weight?[weight]:[];
     const dt=stepTime, oldX=this.x,oldY=this.y, ns=this.nodes;
     this.bodyRadius+=(radius*Math.sqrt(1+1.3*this.ink)-this.bodyRadius)*.045;
     const size=this.bodyRadius/radius;
     const desiredArea=this.restArea*size*size;
-    if(weight)target=weight.guidePush(this,target);
+    for(const object of weights)target=object.guidePush(this,target);
     const dx=target.x-this.x,dy=target.y-this.y,dist=Math.hypot(dx,dy);
     const speed=Math.hypot(this.vx,this.vy);
     // Advance the gait by ground travelled. A blocked or resting body settles.
@@ -368,10 +360,9 @@ class Drop {
       p.x+=p.vx*dt;p.y+=p.vy*dt;
     }
     const obstacles=colliders();
-    if(this.bodyRadius>passage.maxRadius&&oldY<passage.top+24)obstacles.push(sizeBarrier);
     const near=obstacles.filter(r=>oldX>r.left-90&&oldX<r.right+90&&oldY>r.top-90&&oldY<r.bottom+90);
     this.impact=null;
-    if(weight){weight.loadX=0;weight.loadY=0;}
+    for(const object of weights){object.loadX=0;object.loadY=0;}
     for(let pass=0;pass<3;pass++){
       this.center();
       let area=0,denom=0;
@@ -390,7 +381,7 @@ class Drop {
       for(const p of ns){
         const incomingX=p.x,incomingY=p.y;
         for(const r of near)expel(p,r);
-        if(weight)weight.contact(p);
+        for(const object of weights)object.contact(p);
         p.x=clamp(p.x,limits.left,limits.right);p.y=clamp(p.y,limits.top,limits.bottom);
         if(pass===0){
           const nx=p.x-incomingX,ny=p.y-incomingY,depth=Math.hypot(nx,ny);
@@ -400,10 +391,43 @@ class Drop {
           }
         }
       }
+      // The liquid can flatten, but its core still needs room between the
+      // visible banks. A shared terrain contact replaces the hidden size wall.
+      this.center();
+      for(const object of weights){
+        const dx=this.x-object.x,dy=this.y-object.y,d=Math.hypot(dx,dy),minimum=object.radius+this.bodyRadius*.62;
+        if(d<minimum&&d>.001){
+          const sx=dx/d*(minimum-d),sy=dy/d*(minimum-d);
+          for(const p of ns){p.x+=sx;p.y+=sy;}
+          object.loadX-=sx*.65;object.loadY-=sy*.65;this.center();
+        }
+      }
+      const clearance=this.bodyRadius*.7;
+      const allowed=Math.max(-.1,heightMap.coreContact(oldX,oldY,clearance).value);
+      if(heightMap.coreContact(this.x,this.y,clearance).value>allowed){
+        let cx=this.x,cy=this.y;
+        // Resolve only the bank normal. The tangent remains free, so steering
+        // into a curved wall slides along it rather than pinning the body.
+        for(let i=0;i<4;i++){
+          const contact=heightMap.coreContact(cx,cy,clearance),excess=contact.value-allowed;if(excess<=.00001)break;
+          const gx=(heightMap.sample(contact.x+3,contact.y)-heightMap.sample(contact.x-3,contact.y))/6;
+          const gy=(heightMap.sample(contact.x,contact.y+3)-heightMap.sample(contact.x,contact.y-3))/6;
+          const g2=gx*gx+gy*gy;if(g2<.004)break;
+          const correction=Math.min(8,(excess+.006)/Math.sqrt(g2));
+          cx-=gx/Math.sqrt(g2)*correction;cy-=gy/Math.sqrt(g2)*correction;
+        }
+        let low=0,high=1;
+        for(let i=0;i<9;i++){
+          const t=(low+high)*.5;
+          if(heightMap.coreContact(oldX+(cx-oldX)*t,oldY+(cy-oldY)*t,clearance).value<=allowed+.000001)low=t;else high=t;
+        }
+        const shiftX=oldX+(cx-oldX)*low-this.x,shiftY=oldY+(cy-oldY)*low-this.y;
+        for(const p of ns){p.x+=shiftX;p.y+=shiftY;}
+      }
     }
     this.center();this.vx=(this.x-oldX)/dt;this.vy=(this.y-oldY)/dt;
     for(const p of ns){p.vx=clamp((p.x-p.oldX)/dt,-800,800);p.vy=clamp((p.y-p.oldY)/dt,-800,800);}
-    if(weight)weight.advance(this.ink);
+    for(const object of weights)object.advance(this.ink);
     this.tail.advance(this,weight);
   }
 }

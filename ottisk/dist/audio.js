@@ -79,6 +79,12 @@ class GameSound {
       case 'bump': this.voice('sine',165,59,.14,.32*power);this.voice('noise',880,240,.085,.14*power);break;
       case 'corner': this.voice('triangle',390,160,.13,.19);break;
       case 'seat': this.voice('triangle',690,520,.26,.19);this.voice('sine',1050,1020,.31,.08,.03);break;
+      case 'seal': this.voice('sine',83,37,.85,.3);this.voice('noise',170,1050,.65,.11,.045);this.voice('sine',172,89,.7,.1,.08);break;
+      case 'portal': this.voice('noise',280,920,.7,.12);this.voice('sine',104,185,.85,.13);this.voice('triangle',530,370,.55,.06,.15);break;
+      case 'printer': this.voice('noise',145,630,3.8,.15);this.voice('sawtooth',49,77,3.5,.035);this.voice('noise',1600,410,1.2,.055,2.2);break;
+      case 'circuit': this.voice('sine',390,780,.2,.12);this.voice('triangle',120,62,.16,.13,.08);break;
+      case 'rollerWarn': this.voice('triangle',1400,360,.055,.14);this.voice('noise',240,530,.85,.045,.12);break;
+      case 'rollerPress': this.voice('noise',90,450,.34,.22);this.voice('sine',70,33,.3,.24);break;
       case 'plate': this.voice('triangle',275,120,.075,.21);break;
       case 'open': this.voice('noise',480,1600,.52,.25);this.voice('sine',108,172,.38,.16);break;
       case 'flowIn': this.voice('noise',620,180,.23,.12);this.voice('sine',210,82,.28,.12);break;

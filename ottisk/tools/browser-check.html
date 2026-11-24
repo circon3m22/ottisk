@@ -1,0 +1,20 @@
+<!doctype html><meta charset="utf-8"><title>Оттиск · проверка кампании</title>
+<style>html,body{margin:0;background:#eeeae0}iframe{position:fixed;inset:0;width:100%;height:100%;border:0}pre{position:fixed;z-index:2;left:16px;top:16px;margin:0;padding:16px;background:#fff;color:#142417;font:16px/1.5 monospace;white-space:pre-wrap;max-width:90vw}</style>
+<iframe id="game" title="Проверяемый уровень"></iframe><pre id="report">Проверка браузерной кампании…</pre><script src="browser-tests.js"></script>
+<script>
+const frame=document.querySelector('#game'),report=document.querySelector('#report'),results=[];let current=0;
+frame.onload=()=>{
+  const test=OTTISK_TESTS[current],w=frame.contentWindow,logs=[];
+  try{
+    w.console.log=(message)=>logs.push(message);
+    w.eval(test.code);w.eval('draw();update=()=>{};advanceFlow=()=>{};');
+    const next=w.document.querySelector('#next-level');
+    if(test.level<5&&!next?.getAttribute('href').endsWith('level'+(test.level+1)+'.html'))throw Error('Неверный переход на следующий уровень');
+    results.push({level:test.level,checks:logs.filter(line=>typeof line==='string'&&line.startsWith('PASS:')).length,status:'PASS'});
+    report.textContent=JSON.stringify({ok:current+1===OTTISK_TESTS.length,results},null,2);
+    current++;if(current<OTTISK_TESTS.length)setTimeout(load,60);
+  }catch(error){report.textContent=JSON.stringify({ok:false,results,failedLevel:test.level,error:error.stack,logs},null,2);}
+};
+function load(){const level=OTTISK_TESTS[current].level;frame.src=(level===1?'index.html':'level'+level+'.html')+'?qa='+Date.now();}
+load();
+</script>
