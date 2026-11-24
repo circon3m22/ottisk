@@ -116,6 +116,12 @@ class ContourField {
 }
 const heightMap=new ContourField();
 
+// In world units. The combined amplitudes also set the canvas overscan.
+const contourWaves={
+  horizontal:[{amplitude:21,length:59,speed:-1.22},{amplitude:7,length:29,speed:.86}],
+  vertical:[{amplitude:18,length:68,speed:1.28},{amplitude:6,length:33,speed:-.78}]
+};
+
 class ContourPainting {
   constructor(field){
     this.field=field;this.base=null;this.gates=[];this.lowerGates=[];this.gateSteps=14;
@@ -236,7 +242,9 @@ class ContourPainting {
 
     const transform=c.getTransform();
     if(time!==null){
-      const requiredPadding=Math.max(transform.a,transform.d)*6;
+      const reachX=contourWaves.horizontal.reduce((sum,wave)=>sum+wave.amplitude,0);
+      const reachY=contourWaves.vertical.reduce((sum,wave)=>sum+wave.amplitude,0);
+      const requiredPadding=Math.max(transform.a*reachX,transform.d*reachY)+2;
       this.padding=Math.max(this.padding,Math.ceil(requiredPadding/32)*32);
     }
     const padding=time===null?0:this.padding;
@@ -272,15 +280,11 @@ class ContourPainting {
 
     // Warp only the engraving. Each strip interpolates the shifts at its
     // edges so neighboring strips join, even over a moving gate patch.
-    const horizontal=y=>{
-      const worldY=(y-padding-transform.f)/transform.d;
-      return transform.a*(3.4*Math.sin(worldY/204-time*.53)+1.6*Math.sin(worldY/86+time*.38));
-    };
-    const vertical=x=>{
-      const worldX=(x-padding-transform.e)/transform.a;
-      return transform.d*(2.8*Math.sin(worldX/178+time*.47)+1.2*Math.sin(worldX/93-time*.34));
-    };
-    const rowHeight=Math.max(8,Math.round(transform.d*32));
+    const displacement=(waves,point)=>waves.reduce((sum,{amplitude,length,speed})=>
+      sum+amplitude*Math.sin(point/length+time*speed),0);
+    const horizontal=y=>transform.a*displacement(contourWaves.horizontal,(y-padding-transform.f)/transform.d);
+    const vertical=x=>transform.d*displacement(contourWaves.vertical,(x-padding-transform.e)/transform.a);
+    const rowHeight=Math.max(8,Math.round(transform.d*21));
     let start=horizontal(0);
     for(let y=0;y<height;y+=rowHeight){
       const size=Math.min(rowHeight,height-y);
@@ -290,7 +294,7 @@ class ContourPainting {
       start=end;
     }
 
-    const columnWidth=Math.max(8,Math.round(transform.a*32));
+    const columnWidth=Math.max(8,Math.round(transform.a*21));
     start=vertical(padding);
     for(let x=padding;x<width-padding;x+=columnWidth){
       const size=Math.min(columnWidth,width-padding-x);
