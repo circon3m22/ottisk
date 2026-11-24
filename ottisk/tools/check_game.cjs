@@ -6,10 +6,11 @@ const selected=Number(process.argv[2])||0;
 const browserMode=process.argv.includes('--browser'),browserCases=[];
 function verify(code,context){if(browserMode)browserCases.push({level:context.OTTISK_LEVEL,code});else vm.runInContext(code,context);}
 function load(level){
+  if(browserMode)return {OTTISK_LEVEL:level};
   const element=()=>({textContent:'',open:false,width:0,height:0,addEventListener(){},setAttribute(){},getContext(){return {};},focus(){},close(){this.open=false;},showModal(){this.open=true;}});
   const elements=new Map(),document={hidden:false,querySelector(id){if(!elements.has(id))elements.set(id,element());return elements.get(id);},createElement:element,addEventListener(){}};
   const context=vm.createContext({console,document,OTTISK_LEVEL:level,innerWidth:1440,innerHeight:900,devicePixelRatio:1,matchMedia:()=>({matches:false}),window:{addEventListener(){}},requestAnimationFrame(){},GameSound:class{silence(){}play(){}activate(){}rolling(){}}});
-  const source=['levels.js','terrain.js','physics.js','mechanisms.js','tutorial.js','game.js'].map(f=>fs.readFileSync(path.join(root,f),'utf8')).join('\n');
+  const source=['levels.js','terrain.js','physics.js','mechanisms.js','later-levels.js','tutorial.js','game.js'].map(f=>fs.readFileSync(path.join(root,f),'utf8')).join('\n');
   vm.runInContext(source.replace('drawTerrain();reset();size();window.addEventListener(\'resize\',size);requestAnimationFrame(frame);','reset();size();'),context);
   return context;
 }
@@ -137,6 +138,106 @@ verify(shared+`
   drop=new Drop(850,850,.16);target={x:850,y:850};run(80);
   check(drop.ink>.4,'a poor allocation can be reversed by collecting from the first cup');
 `,load(5));}
+const pointerRoute=`
+  const steer=(x,y)=>{
+    const scale=baseScale*camera.zoom;
+    pointerMove({clientX:width/2+(x-camera.x)*scale,clientY:height/2+(y-camera.y+sheetOffset())*scale*tilt});
+  };
+  const step=(n)=>{for(let i=0;i<n&&flowTime===null;i++)update();};
+  const travel=(x,y,n=2200)=>{
+    steer(x,y);
+    for(let i=0;i<n&&flowTime===null&&Math.hypot(drop.x-x,drop.y-y)>6;i++)update();
+    if(flowTime===null&&Math.hypot(drop.x-x,drop.y-y)>14)throw Error('Pointer route '+x+','+y+' blocked at '+drop.x.toFixed(1)+','+drop.y.toFixed(1));
+  };
+`;
+
+if(!selected||selected===6){console.log('LEVEL 6');
+verify(shared+pointerRoute+`
+  travel(415,760);steer(980,760);step(1200);
+  check(weight.seated&&gateOpening===1&&!unlocked,'right contact opens only the first bracket');
+  travel(550,915);for(const p of curve(topoLayout.gate.points))travel(...p);travel(610,1340);
+  check(mechanisms.surveyed,'inner contact registers the player inside the first arc');
+  travel(610,1220);for(const p of curve(topoLayout.gate.points).reverse())travel(...p);travel(550,915);
+  travel(990,890);travel(990,760);steer(425,760);step(1250);
+  check(weight.atStart&&lowerOpening===1&&gateOpening===0,'the opposite push opens the second bracket and closes the first');
+  travel(962,860);
+  for(const p of curve(topoLayout.lowerGate.points).slice(0,4)){steer(...p);step(230);}
+  check(drop.y<1250,'full body cannot squeeze through the outer bracket');
+  travel(915,850);shedding=true;step(230);shedding=false;
+  travel(962,860);for(const p of curve(topoLayout.lowerGate.points))travel(...p);
+  travel(905,1970);step(200);check(mechanisms.sealed&&unlocked,'leaving the second bracket starts a fresh print behind the mouse');
+  travel(well.x,well.y);finish();
+`,load(6));}
+
+if(!selected||selected===7){console.log('LEVEL 7');
+verify(shared+pointerRoute+`
+  travel(545,545);steer(540,750);step(77);
+  check(mechanisms.fracture>0&&!mechanisms.rewind,'wet seam first warns under a heavy body');
+  step(130);
+  check(!mechanisms.rewind&&drop.y<topoLayout.fragile.top&&Math.abs(drop.ink-.76)<1e-8,'fall restores the safe bank and the ink stock');
+  travel(545,505);shedding=true;step(255);shedding=false;
+  for(const p of heightMap.guides)travel(...p);travel(970,1200);step(160);
+  check(mechanisms.bridgeLatched&&gateOpening===1,'only the light crossing reaches the solid bypass contact');
+  travel(1020,1090);
+  for(const p of curve(topoLayout.gate.points).reverse())travel(...p);
+  travel(545,505);step(250);
+  for(let i=0;i<4&&drop.ink<.67;i++){
+    const p=inkPools.find(p=>p.amount>.015);if(!p)break;travel(p.x,p.y);step(180);
+  }
+  check(drop.ink>=requiredInk,'original stock is recoverable from the solid bypass');
+  travel(910,500);for(const p of curve(topoLayout.gate.points))travel(...p);
+  travel(450,1390);travel(455,1410);pointer=null;push(weight);
+  travel(720,1770);travel(well.x,well.y);step(160);finish();
+`,load(7));}
+
+if(!selected||selected===8){console.log('LEVEL 8');
+verify(shared+pointerRoute+`
+  travel(520,510);step(130);
+  check(gateOpening===1&&lowerOpening===0,'first printed stroke opens independently');
+  for(const p of curve(topoLayout.gate.points))travel(...p);
+  travel(958,1120);step(180);
+  check(drop.ink>.32,'central ink remains reachable between print phases');
+  travel(905,1285);
+  for(const p of curve(topoLayout.lowerGate.points))travel(...p,3000);
+  travel(520,2040);step(250);
+  check(mechanisms.phase>=-1&&mechanisms.printAge>=1.4&&unlocked,'last printed glyph separates into drops and releases the exit');
+  travel(well.x,well.y);finish();
+`,load(8));}
+
+if(!selected||selected===9){console.log('LEVEL 9');
+verify(shared+pointerRoute+`
+  travel(690,1130);step(100);
+  check(mechanisms.companion.awake>.9&&!mechanisms.released,'captive visibly wakes without releasing');
+  travel(890,920);step(140);
+  check(!mechanisms.released,'the heavy plate alone cannot release the captive');
+  travel(453,640);shedding=true;step(143);steer(453,530);step(30);shedding=false;travel(453,530);step(130);
+  check(cupLoads[0]>=.28&&drop.ink>=.46,'single stock powers the cup and leaves enough body weight');
+  travel(890,920);step(160);check(mechanisms.released,'loaded cup and plate release the captive');
+  travel(453,666);step(245);
+  check(mechanisms.released&&gateOpening===1&&cupLoads[0]<.04,'recovering the cup ink after release keeps the lift open');
+  travel(690,1240);travel(710,1410);for(const p of curve(topoLayout.gate.points))travel(...p);
+  travel(1000,1860);step(160);
+  check(nearPoint(mechanisms.companion,topoLayout.waitAt,28)&&unlocked,'companion follows the opened route and waits at the exit');
+  travel(well.x,well.y);finish();
+`,load(9));}
+
+if(!selected||selected===10){console.log('LEVEL 10');
+verify(shared+pointerRoute+`
+  for(const p of heightMap.guides)travel(...p);
+  travel(735,1050);step(350);
+  check(nearPoint(mechanisms.companion,drop,95),'companion follows the actual route around the bends');
+  travel(plate.x,plate.y);step(180);
+  check(mechanisms.holding&&mechanisms.blocked&&!mechanisms.assignment,'centred body opens the actuator but blocks the companion');
+  travel(1034,1220);step(140);
+  check(mechanisms.assignment&&!mechanisms.arrived,'offset body clears space for the small companion');
+  travel(1090,1180);step(100);
+  check(!mechanisms.arrived&&!unlocked,'releasing the brake before the companion arrives stops its progress');
+  travel(1034,1220);step(530);
+  check(mechanisms.arrived&&gateOpening===1&&unlocked,'companion crosses the small channel and opens the wide path');
+  travel(740,1130);travel(530,1290);for(const p of curve(topoLayout.gate.points))travel(...p);
+  travel(620,1920);travel(well.x,well.y);finish();
+`,load(10));}
+
 if(browserMode){
   fs.writeFileSync(path.join(root,'browser-tests.js'),'window.OTTISK_TESTS='+JSON.stringify(browserCases)+';\n');
   fs.copyFileSync(path.join(__dirname,'browser-check.html'),path.join(root,'browser-check.html'));

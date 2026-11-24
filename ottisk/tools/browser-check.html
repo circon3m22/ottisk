@@ -9,9 +9,11 @@ frame.onload=()=>{
     w.console.log=(message)=>logs.push(message);
     w.eval(test.code);w.eval('draw();update=()=>{};advanceFlow=()=>{};');
     const next=w.document.querySelector('#next-level');
-    if(test.level<5&&!next?.getAttribute('href').endsWith('level'+(test.level+1)+'.html'))throw Error('Неверный переход на следующий уровень');
+    if(test.level<10&&!next?.getAttribute('href').endsWith('level'+(test.level+1)+'.html'))throw Error('Неверный переход на следующий уровень');
     results.push({level:test.level,checks:logs.filter(line=>typeof line==='string'&&line.startsWith('PASS:')).length,status:'PASS'});
-    report.textContent=JSON.stringify({ok:current+1===OTTISK_TESTS.length,results},null,2);
+    const complete=current+1===OTTISK_TESTS.length;
+    report.textContent=(complete?'PASS · все маршруты пройдены':'Проверка продолжается')+'\n\n'+
+      results.map(result=>'Уровень '+result.level+' · '+result.status+' · проверок '+result.checks).join('\n');
     current++;if(current<OTTISK_TESTS.length)setTimeout(load,60);
   }catch(error){report.textContent=JSON.stringify({ok:false,results,failedLevel:test.level,error:error.stack,logs},null,2);}
 };

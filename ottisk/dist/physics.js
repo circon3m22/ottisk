@@ -21,15 +21,17 @@ function roundedLoop(corners) {
 
 const {worldSize,spawn,railStart,socket,plate,well,passage}=topoLayout;
 const rocks=[heightMap.collider];
-const turnRadius=46, elbow=socket.x-railStart.x-turnRadius;
-const arcLength=Math.PI*turnRadius/2;
-const railSign=Math.sign(socket.y-railStart.y)||-1;
-const railLength=elbow+arcLength+Math.abs(railStart.y-socket.y)-turnRadius;
 const limits = {left:34,right:worldSize.width-40,top:38,bottom:worldSize.height-40};
 const requiredInk=.52;
 const barriers=[];
 const colliders=()=>rocks.concat(barriers);
 function createRail(start,finish){
+  if(start.y===finish.y){
+    const direction=Math.sign(finish.x-start.x);
+    return {start,finish,length:Math.abs(finish.x-start.x),point(s){
+      return {x:start.x+direction*s,y:start.y,tx:direction,ty:0};
+    }};
+  }
   const bend=46,straight=finish.x-start.x-bend,arc=Math.PI*bend/2,sign=Math.sign(finish.y-start.y)||1;
   return {start,finish,length:straight+arc+Math.abs(finish.y-start.y)-bend,point(s){
     if(s<straight)return {x:start.x+s,y:start.y,tx:1,ty:0};
@@ -38,6 +40,7 @@ function createRail(start,finish){
   }};
 }
 const mainRail=createRail(railStart,socket);
+const railLength=mainRail.length;
 function railPoint(s){return mainRail.point(s);}
 
 function expel(p,rock,clearance=0) {

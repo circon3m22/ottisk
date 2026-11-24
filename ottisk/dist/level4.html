@@ -8,7 +8,7 @@
 <link rel="stylesheet" href="style.css">
 <main>
   <canvas id="room" tabindex="0" aria-label="Уровень 4, Абзац. Двигайтесь мышью или стрелками. Удерживайте левую кнопку мыши или пробел для сброса чернил."></canvas>
-  <header><div><h1>Оттиск</h1><select id="chapter" class="level-name" aria-label="Уровень"><option value="index.html">1. Противовес</option><option value="level2.html">2. Ушко</option><option value="level3.html">3. Разрыв</option><option value="level4.html">4. Абзац</option><option value="level5.html">5. Двоеточие</option></select></div><div class="controls">
+  <header><div><h1>Оттиск</h1><select id="chapter" class="level-name" aria-label="Уровень"><option value="index.html">1. Противовес</option><option value="level2.html">2. Ушко</option><option value="level3.html">3. Разрыв</option><option value="level4.html">4. Абзац</option><option value="level5.html">5. Двоеточие</option><option value="level6.html">6. Скобки</option><option value="level7.html">7. Мокрое место</option><option value="level8.html">8. Повторная печать</option><option value="level9.html">9. Чужой след</option><option value="level10.html">10. Вдвоём</option></select></div><div class="controls">
     <button id="sound" aria-label="Включить звук" aria-pressed="false" title="Включить звук"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9h4l5-4v14l-5-4H3z"/><path class="waves" d="M15.5 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14"/><path class="mute" d="m16 9 5 6m0-6-5 6"/></svg></button>
     <button id="help" aria-label="Показать подсказку" aria-pressed="false" aria-controls="objective" title="Подсказка (H)">?</button><button id="reset" title="Начать заново (R)" aria-label="Начать заново">↺</button></div></header>
   <footer><span id="objective" aria-live="polite">Следуйте по листу.</span><span id="hint">Удерживайте ЛКМ или пробел</span></footer>
@@ -22,6 +22,7 @@
 <script src="terrain.js"></script>
 <script src="physics.js"></script>
 <script src="mechanisms.js"></script>
+<script src="later-levels.js"></script>
 <script src="tutorial.js"></script>
 <script src="audio.js"></script>
 <script src="game.js"></script>

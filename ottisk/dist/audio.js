@@ -85,6 +85,10 @@ class GameSound {
       case 'circuit': this.voice('sine',390,780,.2,.12);this.voice('triangle',120,62,.16,.13,.08);break;
       case 'rollerWarn': this.voice('triangle',1400,360,.055,.14);this.voice('noise',240,530,.85,.045,.12);break;
       case 'rollerPress': this.voice('noise',90,450,.34,.22);this.voice('sine',70,33,.3,.24);break;
+      case 'paperCrack': this.voice('noise',1650,740,.19,.14);this.voice('noise',2600,990,.1,.09,.11);break;
+      case 'paperTear': this.voice('noise',2600,310,.42,.24);this.voice('sine',90,38,.27,.17);break;
+      case 'overprint': this.voice('triangle',870,260,.072,.13);this.voice('noise',360,1350,.6,.12,.07);break;
+      case 'companion': this.voice('sine',560,820,.145,.095);this.voice('sine',795,1020,.22,.086,.13);break;
       case 'plate': this.voice('triangle',275,120,.075,.21);break;
       case 'open': this.voice('noise',480,1600,.52,.25);this.voice('sine',108,172,.38,.16);break;
       case 'flowIn': this.voice('noise',620,180,.23,.12);this.voice('sine',210,82,.28,.12);break;

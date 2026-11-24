@@ -8,6 +8,7 @@ select.level-name{display:block;pointer-events:auto;border:0;background:transpar
 #completion h2{margin:0 0 20px;font:italic 400 clamp(27px,4vw,42px)/1.15 Georgia,serif}
 #replay{width:auto;height:auto;min-height:44px;padding:10px 20px;border-radius:5px;background:#33392d;color:#fffdf5;font:inherit}
 #objective{max-width:55%}#hint{max-width:40%;text-align:right}
+footer span:empty{display:none}
 .completion-actions{display:flex;justify-content:center;align-items:center;flex-wrap:wrap;gap:12px}
 .completion-actions a{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:10px 20px;border:1px solid #706f6460;border-radius:5px;color:#33392d;text-decoration:none;font:inherit}
 #next-level{background:#33392d;color:#fffdf5}

@@ -1,6 +1,5 @@
 'use strict';
 
-const levelNumber=Number.isInteger(globalThis.OTTISK_LEVEL)&&globalThis.OTTISK_LEVEL>=1&&globalThis.OTTISK_LEVEL<=5?globalThis.OTTISK_LEVEL:1;
 const levelLayouts={
   1:{
     name:'Противовес',worldSize:{width:1260,height:3300},spawn:{x:590,y:190},initialInk:0,
@@ -99,6 +98,75 @@ const levelLayouts={
     cups:[{x:850,y:850},{x:850,y:1820}],cupRequired:.26,bodyRequired:.28,balanceTolerance:.055,
     exitWire:[[[850,1820],[870,1810],[895,1825],[920,1845]]],
     mechanismWire:[[[850,850],[1100,1110],[1120,1510],[850,1820]]]
+  },
+  6:{
+    name:'Скобки',worldSize:{width:1540,height:2390},spawn:{x:620,y:240},initialInk:.64,
+    railStart:{x:500,y:760},socket:{x:900,y:760},plate:{x:610,y:1340},well:{x:905,y:2070},
+    passage:{maxRadius:36},inkSources:[],
+    palette:{floor:[239,229,215],ridge:[207,187,163],line:'118,87,68'},
+    rooms:[[690,550,510,460],[615,1370,330,260],[905,2050,380,235]],
+    islands:[[280,570,85,180]],
+    paths:[],
+    gate:{bounds:{left:350,top:840,width:510,height:475},points:[[550,915],[460,1080],[750,1040],[610,1220]],radius:66},
+    lowerGate:{bounds:{left:720,top:800,width:635,height:1150},points:[[962,860],[1230,1170],[1170,1590],[920,1900]],radius:29.5},
+    exitWire:[[[920,1900],[905,1960],[860,2010],[905,2070]]],
+    mechanismWire:[[[900,760],[810,820],[684,885],[550,915]],[[550,915],[460,1080],[750,1040],[610,1220]],[[610,1220],[610,1260],[600,1300],[610,1340]]]
+  },
+  7:{
+    name:'Мокрое место',worldSize:{width:1480,height:2210},spawn:{x:545,y:280},initialInk:.76,
+    railStart:{x:540,y:1410},socket:{x:845,y:1650},plate:{x:970,y:1200},well:{x:665,y:1860},
+    passage:{x:545,top:585,bottom:1025,maxRadius:37},inkSources:[],
+    fragile:{left:466,right:624,top:586,bottom:1022,mass:.27,duration:.52},
+    palette:{floor:[229,236,223],ridge:[174,199,184],line:'69,108,101'},
+    rooms:[[585,355,485,255],[680,1400,485,475],[665,1870,235,180]],
+    paths:[{points:[[545,550],[505,730],[584,845],[545,1050]],r0:49,r1:49,guide:true}],
+    gate:{bounds:{left:780,top:445,width:545,height:710},points:[[910,500],[1230,620],[1210,910],[1020,1090]],radius:75},
+    exitWire:[[[845,1650],[893,1800],[795,1840],[665,1860]]],
+    mechanismWire:[[[970,1200],[1010,1110],[1110,1030],[1160,912]]]
+  },
+  8:{
+    name:'Повторная печать',worldSize:{width:1540,height:2440},spawn:{x:465,y:290},initialInk:.14,
+    railStart:{x:100,y:100},socket:{x:200,y:180},plate:{x:920,y:1140},well:{x:520,y:2170},
+    passage:{},inkSources:[[958,1120]],
+    palette:{floor:[230,234,234],ridge:[176,190,203],line:'69,89,122'},
+    rooms:[[465,325,390,240],[920,1110,350,265],[545,2050,440,270]],
+    paths:[
+      {points:[[845,1090],[1000,1040],[1160,1100],[1260,1170]],r0:72,r1:58},
+      {points:[[550,1960],[385,1880],[275,1950],[255,2095]],r0:64,r1:54}
+    ],
+    gate:{bounds:{left:360,top:450,width:650,height:540},points:[[520,510],[550,680],[840,620],[880,900]],radius:66},
+    lowerGate:{bounds:{left:280,top:1230,width:710,height:680},points:[[905,1285],[905,1550],[390,1500],[450,1840]],radius:66},
+    printMark:{x:520,y:2040},
+    exitWire:[[[520,2040],[565,2070],[500,2110],[520,2170]]],
+    mechanismWire:[[[520,510],[550,680],[840,620],[880,900]],[[880,900],[930,1040],[900,1180],[905,1285]],[[905,1285],[905,1550],[390,1500],[450,1840]],[[450,1840],[485,1910],[570,1990],[520,2040]]]
+  },
+  9:{
+    name:'Чужой след',worldSize:{width:1530,height:2380},spawn:{x:580,y:260},initialInk:.9,
+    railStart:{x:100,y:100},socket:{x:200,y:180},plate:{x:890,y:920},well:{x:1050,y:2000},
+    passage:{},inkSources:[],
+    palette:{floor:[240,232,215],ridge:[195,184,158],line:'111,93,68'},
+    rooms:[[640,650,530,490],[685,1240,340,245],[1000,1960,325,260]],
+    paths:[{points:[[640,965],[630,1030],[685,1060],[690,1140]],r0:83,r1:86}],
+    gate:{bounds:{left:575,top:1320,width:600,height:565},points:[[710,1410],[760,1640],[1010,1580],[1000,1810]],radius:73},
+    cups:[{x:453,y:666}],cupRequired:.28,bodyRequired:.46,
+    captive:{x:690,y:1220},waitAt:{x:970,y:1935},
+    exitWire:[[[1000,1810],[1000,1895],[1080,1930],[1050,2000]]],
+    mechanismWire:[[[453,666],[528,740],[810,755],[890,920]],[[890,920],[980,1080],[770,1160],[690,1220]]]
+  },
+  10:{
+    name:'Вдвоём',worldSize:{width:1530,height:2360},spawn:{x:500,y:280},initialInk:.72,
+    railStart:{x:100,y:100},socket:{x:200,y:180},plate:{x:1000,y:1220},well:{x:681,y:2080},
+    passage:{},inkSources:[],
+    palette:{floor:[234,235,223],ridge:[175,191,176],line:'83,105,87'},
+    rooms:[[515,315,400,235],[740,1080,465,310],[670,1940,485,310]],
+    paths:[{points:[[560,470],[560,660],[800,660],[790,820]],r0:78,r1:74,guide:true}],
+    gate:{bounds:{left:245,top:1220,width:590,height:600},points:[[530,1290],[460,1480],[430,1530],[475,1740]],radius:72},
+    lowerGate:{bounds:{left:830,top:1210,width:265,height:600},points:[[960,1300],[960,1440],[960,1540],[960,1740]],radius:19},
+    companionSpawn:{x:435,y:322},refuges:[[515,315],[735,1050]],
+    pilot:{x:960,y:1785},waitAt:{x:755,y:2040},bodyRequired:.5,
+    exitWire:[[[960,1785],[860,1870],[700,1940],[681,2080]]],
+    mechanismWire:[[[1000,1220],[1040,1320],[1015,1410],[960,1440]]]
   }
 };
+const levelNumber=Object.hasOwn(levelLayouts,globalThis.OTTISK_LEVEL)?Number(globalThis.OTTISK_LEVEL):1;
 const topoLayout=levelLayouts[levelNumber];
