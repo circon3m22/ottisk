@@ -10,10 +10,11 @@ let inkPools=[],shedding=false,shedTime=0,shedAmount=0,inkSoundWait=0;
 const tilt=.84;
 let width,height,dpr,baseScale, camera, drop,weight,target, pointer=null, unlocked=false, solved=false, opening=0;
 let elapsed=0,prev=0,lag=0,started=false,touchId=null;
+let tutorial,gateOpening=0;
 const keys=new Set();
 const terrain=document.createElement('canvas');
 const texScale=1.6, margin=240;
-terrain.width=(1260+2*margin)*texScale;terrain.height=(765+2*margin)*texScale;
+terrain.width=(worldSize.width+2*margin)*texScale;terrain.height=(worldSize.height+2*margin)*texScale;
 const map=terrain.getContext('2d');
 map.setTransform(texScale,0,0,texScale,margin*texScale,margin*texScale);
 let seed=84135;
@@ -26,7 +27,7 @@ function oval(c,x,y,a,b,fill){
 }
 function contours(r,idx){
   const vs=r.vertices, mx=(r.left+r.right)/2,my=(r.top+r.bottom)/2;
-  const height=[22,28,15,23,24,30,18][idx];
+  const height=[22,28,15,23,24,30,18][idx%7];
   // Offset silhouettes form the shaded cuts beneath each engraved surface.
   for(let k=14;k>0;k--){
     loop(map,vs,k*1.6,k*.96);map.fillStyle='rgba(59,55,42,.024)';map.fill();
@@ -36,7 +37,7 @@ function contours(r,idx){
   }
   map.save();loop(map,vs,0,-height);map.clip();
   const topColors=['#c5c6ad','#c2c5af','#cccbb5','#bfc2ad','#c7c8b1','#bec2ac','#c8c9b5'];
-  map.fillStyle=topColors[idx];map.fillRect(r.left-2,r.top-height-2,r.right-r.left+4,r.bottom-r.top+4);
+  map.fillStyle=topColors[idx%7];map.fillRect(r.left-2,r.top-height-2,r.right-r.left+4,r.bottom-r.top+4);
   // Off-centre nested strata, individually warped like the lines of a relief print.
   const tx=mx+(idx%2?-.18:.17)*(r.right-r.left),ty=my-.12*(r.bottom-r.top);
   for(let line=0;line<35;line++){
@@ -58,27 +59,27 @@ function contours(r,idx){
   map.restore();loop(map,vs,0,-height);map.strokeStyle='#77816c';map.lineWidth=1;map.stroke();
 }
 function traceWire(c){
-  c.beginPath();c.moveTo(plate.x,plate.y);c.bezierCurveTo(380,633,419,584,516,584);
-  c.bezierCurveTo(690,584,869,580,well.x,well.y);
+  c.beginPath();c.moveTo(plate.x,plate.y);c.bezierCurveTo(440,2560,910,2538,910,2660);
+  c.bezierCurveTo(910,2840,660,2820,660,3010);c.bezierCurveTo(660,3135,740,well.y,well.x,well.y);
 }
 function railPath(c){
-  c.beginPath();c.moveTo(railStart.x,railStart.y);c.lineTo(socket.x,railStart.y);c.lineTo(socket.x,socket.y);
+  c.beginPath();c.moveTo(railStart.x,railStart.y);c.lineTo(socket.x-turnRadius,railStart.y);
+  c.quadraticCurveTo(socket.x,railStart.y,socket.x,railStart.y+railSign*turnRadius);c.lineTo(socket.x,socket.y);
 }
 function socketWire(c){
-  c.beginPath();c.moveTo(socket.x,socket.y);c.bezierCurveTo(640,174,672,267,565,277);
-  c.bezierCurveTo(375,287,451,414,451,502);c.bezierCurveTo(451,595,335,582,plate.x,plate.y);
+  c.beginPath();c.moveTo(socket.x,socket.y);c.bezierCurveTo(850,1980,passage.x,1970,passage.x,passage.top+8);
 }
 function drawTerrain(){
-  map.fillStyle=paper;map.fillRect(-margin,-margin,1740,1245);
-  for(let i=0;i<65000;i++){
-    const x=rand()*1740-margin,y=rand()*1245-margin;
+  map.fillStyle=paper;map.fillRect(-margin,-margin,worldSize.width+2*margin,worldSize.height+2*margin);
+  for(let i=0;i<195000;i++){
+    const x=rand()*(worldSize.width+2*margin)-margin,y=rand()*(worldSize.height+2*margin)-margin;
     map.fillStyle=i%4?'rgba(77,68,47,.09)':'rgba(255,255,255,.47)';
     map.fillRect(x,y,.4+rand()*1.55,.48+rand()*.85);
   }
   // Sparse flecks and small combs of sediment make the floor legible while moving.
   map.lineWidth=.72;
-  for(let i=0;i<210;i++){
-    const x=rand()*1220,y=rand()*724,n=2+Math.floor(rand()*5);
+  for(let i=0;i<680;i++){
+    const x=rand()*1220,y=rand()*3260,n=2+Math.floor(rand()*5);
     map.strokeStyle='rgba(97,98,78,.24)';map.beginPath();
     for(let j=0;j<n;j++){
       const u=x+j*1.9,v=y+rand()*2;map.moveTo(u,v);map.lineTo(u+2+rand()*3,v-1-rand()*2);
@@ -92,22 +93,22 @@ function drawTerrain(){
   railPath(map);map.lineWidth=15;map.lineJoin='round';map.lineCap='round';
   map.strokeStyle='#bcb7a6';map.stroke();railPath(map);map.strokeStyle='#726e60';map.lineWidth=6;map.stroke();
   railPath(map);map.strokeStyle='#d6d1bc';map.lineWidth=2;map.stroke();
-  for(let x=railStart.x+16;x<socket.x-10;x+=21){
-    map.fillStyle='#88806e';map.fillRect(x,railStart.y-6,1.5,12);
+  map.strokeStyle='#88806e';map.lineWidth=1.5;
+  for(let s=16;s<railLength-10;s+=21){
+    const p=railPoint(s),nx=-p.ty,ny=p.tx;
+    map.beginPath();map.moveTo(p.x-nx*6,p.y-ny*6);map.lineTo(p.x+nx*6,p.y+ny*6);map.stroke();
   }
-  for(let y=socket.y+15;y<railStart.y-10;y+=21)map.fillRect(socket.x-6,y,12,1.5);
   rocks.forEach(contours);
 }
 function reset(){
   if(completion.open)completion.close();
   sound.silence();marks=[];flowTime=null;flowEnded=false;onPlateBefore=false;impactWait=0;
   shedding=false;shedTime=0;shedAmount=0;inkSoundWait=0;
-  inkPools=[[285,295],[165,400],[535,265],[643,410],[866,211],[1104,443],[166,639],[946,661]]
-    .map(([x,y],i)=>new InkDrop(x,y,i*1.8));
+  inkPools=[];tutorial=new FirstImprint();gateOpening=0;barriers.length=0;barriers.push(gateBarrier);
   drop=new Drop(spawn.x,spawn.y);weight=new Counterweight();target={x:drop.x,y:drop.y};pointer=null;
-  camera={x:innerWidth/innerHeight<.9?spawn.x+65:545,y:382,zoom:1};keys.clear();started=false;unlocked=false;solved=false;opening=0;touchId=null;
-  objective.textContent='Впитайте капли, чтобы легче толкать груз';
-  hint.textContent=matchMedia('(pointer: coarse)').matches?'Удерживайте касание, чтобы сбросить чернила':'Зажмите ЛКМ, чтобы сбросить чернила';
+  camera={x:spawn.x,y:245,zoom:1.52};keys.clear();started=false;unlocked=false;solved=false;opening=0;touchId=null;
+  objective.textContent=tutorial.message;
+  hint.textContent=matchMedia('(pointer: coarse)').matches?'Коснитесь бумаги':'Можно двигаться стрелками';
 }
 function size(){
   width=innerWidth;height=innerHeight;dpr=Math.min(devicePixelRatio||1,2);
@@ -115,7 +116,8 @@ function size(){
   baseScale=Math.min(width/(width/height<.9?665:1330),height/(830*tilt));
 }
 function pointerMove(e){
-  started=true;pointer={x:e.clientX,y:e.clientY};
+  started=true;const s=baseScale*camera.zoom;
+  pointer={x:e.clientX,y:e.clientY,worldX:camera.x+(e.clientX-width/2)/s,worldY:camera.y+(e.clientY-height/2)/(s*tilt)};
 }
 canvas.addEventListener('pointermove',e=>{
   if(e.pointerType!=='touch'||e.pointerId===touchId)pointerMove(e);
@@ -236,18 +238,23 @@ function update(){
   for(const m of marks)m.age+=stepTime;
   if(marks.length)marks=marks.filter(m=>m.age<m.life);
   if(solved||flowTime!==null)return;
+  barriers.length=0;if(gateOpening<.9)barriers.push(gateBarrier);
   updateInk();
   const scale=baseScale*camera.zoom;
   if(pointer){
-    target.x=camera.x+(pointer.x-width/2)/scale;
-    target.y=camera.y+(pointer.y-height/2)/(scale*tilt);
+    target.x=pointer.worldX;target.y=pointer.worldY;
   }else if(keys.size){
     target.x=drop.x+100*(Number(keys.has('ArrowRight'))-Number(keys.has('ArrowLeft')));
     target.y=drop.y+100*(Number(keys.has('ArrowDown'))-Number(keys.has('ArrowUp')));
   }
   target.x=clamp(target.x,limits.left+3,limits.right-3);target.y=clamp(target.y,limits.top+3,limits.bottom-3);
-  const lastStride=drop.stride,lastPosition=weight.position,wasSeated=weight.seated;
+  const lastStride=drop.stride,wasSeated=weight.seated,oldX=drop.x,oldY=drop.y;
   drop.advance(target,weight);
+  const event=tutorial.advance(drop,weight,Math.hypot(drop.x-oldX,drop.y-oldY),target);
+  if(event.reveal){
+    inkPools=[[290,1590],[210,1820],[620,1810],[980,1670]].map(([x,y],i)=>new InkDrop(x,y,i*1.8,.24));
+    sound.play('inkOut');
+  }
   const speed=Math.hypot(drop.vx,drop.vy), portrait=width/height<.9;
   if(Math.floor(lastStride/TAU)!==Math.floor(drop.stride/TAU) && drop.effort>.17){
     sound.play('step',drop.effort);
@@ -258,25 +265,25 @@ function update(){
   if(drop.impact && !impactWait){
     const h=drop.impact;sound.play('bump',clamp(h.speed/310,.22,1));grit(h.x,h.y,6,h.nx,h.ny);impactWait=.22;
   }
-  if(lastPosition!==elbow && weight.position===elbow)sound.play('corner');
-  if(!wasSeated && weight.seated){sound.play('seat');ripple(socket.x,socket.y,41,rust);}
+  if(!wasSeated && weight.seated){sound.play('seat');sound.play('open');ripple(socket.x,socket.y,41,rust);}
+  if(weight.seated)gateOpening=Math.min(1,gateOpening+stepTime*1.25);
   const approach=(value,goal,rate)=>value+(goal-value)*(1-Math.exp(-rate*stepTime));
   const follow=portrait?.94:.49;
-  const focusX=610+(drop.x-610)*follow,focusY=382+(drop.y-382)*follow;
+  const focusX=started?610+(drop.x-610)*follow:spawn.x,focusY=started?clamp(drop.y+135,245,limits.bottom-200):245;
   camera.x=approach(camera.x,focusX,2.7);camera.y=approach(camera.y,focusY,2.7);
-  const zoom=started&&!reduced.matches?1.26-.32*clamp(speed/360,0,1):1;
+  const zoom=!started?1.52:reduced.matches?1.15:1.26-.32*clamp(speed/360,0,1);
   camera.zoom=approach(camera.zoom,zoom,1.65);
   const onPlate=Math.hypot(drop.x-plate.x,drop.y-plate.y)<33;
   if(onPlate&&!onPlateBefore&&!unlocked){sound.play('plate');ripple(plate.x,plate.y,21,rust);}
   onPlateBefore=onPlate;
   if(!unlocked&&weight.seated && onPlate){unlocked=true;sound.play('open');ripple(well.x,well.y,38,'#777963');}
   if(unlocked)opening=Math.min(1,opening+stepTime*1.25);
-  let instruction=drop.ink<.55&&!weight.seated?'Впитайте капли, чтобы легче толкать груз':'Доставьте груз в гнездо';
-  if(onPlate&&!weight.seated)instruction='Для защёлки нужен груз в гнезде';
-  if(weight.position===elbow)instruction='Толкните груз с другой стороны';
-  if(weight.seated)instruction='Найдите плиту за перегородкой';
-  if(unlocked)instruction='Войдите в колодец';
+  if(unlocked)tutorial.stage='exit';
+  let instruction=tutorial.message;
+  if(weight.seated&&tutorial.stage==='passage')instruction='Найдите узкий проход к нижней кнопке';
   if(objective.textContent!==instruction)objective.textContent=instruction;
+  const control=tutorial.stage==='shed'?(matchMedia('(pointer: coarse)').matches?'Удерживайте касание':'Удерживайте ЛКМ или пробел'):tutorial.stage==='move'?'Можно двигаться стрелками':'';
+  if(hint.textContent!==control)hint.textContent=control;
   if(opening>=1 && Math.hypot(drop.x-well.x,drop.y-well.y)<46){
     flowTime=0;keys.clear();shedding=false;stopPointer();hint.textContent='';
     sound.play('flowIn');
@@ -284,6 +291,13 @@ function update(){
   elapsed+=stepTime;
 }
 function devices(){
+  if(gateOpening<1){
+    const y=passage.top+8,x=passage.x-gateOpening*67;
+    ctx.save();ctx.beginPath();ctx.rect(passage.left-1,y-10,54,17);ctx.clip();
+    ctx.fillStyle='#a3a591';ctx.fillRect(x-28,y-5,56,9);
+    ctx.strokeStyle='#747b66';ctx.lineWidth=1;ctx.strokeRect(x-28,y-5,56,9);
+    ctx.strokeStyle='#d4d2bd';ctx.beginPath();ctx.moveTo(x-24,y-3);ctx.lineTo(x+24,y-3);ctx.stroke();ctx.restore();
+  }
   const {x,y}=plate;
   const onPlate=unlocked||Math.hypot(drop.x-x,drop.y-y)<33;
   const {x:sx,y:sy}=socket;
