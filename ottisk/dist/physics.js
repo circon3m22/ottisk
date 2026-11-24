@@ -20,11 +20,10 @@ function roundedLoop(corners) {
 }
 
 const {worldSize,spawn,railStart,socket,plate,well,passage}=topoLayout;
-const rocks=[heightMap.collider];
 const limits = {left:34,right:worldSize.width-40,top:38,bottom:worldSize.height-40,...topoLayout.playBounds};
 const requiredInk=.52;
 const barriers=[];
-const colliders=()=>rocks.concat(barriers);
+const colliders=()=>[heightMap.collider,...barriers];
 function createRail(start,finish){
   if(start.y===finish.y){
     const direction=Math.sign(finish.x-start.x);

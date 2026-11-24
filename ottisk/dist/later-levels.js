@@ -337,27 +337,27 @@ class PaperCompanion {
     }
     this.move(this.trail[0]||this.safe);
   }
-  move(point){
+  move(point,field=heightMap){
     const dx=point.x-this.x,dy=point.y-this.y,dist=Math.hypot(dx,dy);
     const drive=Math.min(5.5,252/Math.max(dist,1));
     const ease=1-Math.exp(-7*stepTime);
     this.vx+=(dx*drive-this.vx)*ease;
     this.vy+=(dy*drive-this.vy)*ease;
     const next={x:this.x+this.vx*stepTime,y:this.y+this.vy*stepTime};
-    heightMap.collide(next,this.radius);
+    field.collide(next,this.radius);
     const change=Math.hypot(next.x-this.x,next.y-this.y);
     this.vx=(next.x-this.x)/stepTime;this.vy=(next.y-this.y)/stepTime;
     if(change>.12)this.direction=Math.atan2(this.vy,this.vx);
     this.x=next.x;this.y=next.y;
     if(change<.035&&dist>22)this.stall+=stepTime;else this.stall=0;
   }
-  walk(){
-    const inRoom=point=>point.onPaper?heightMap.warp.inRoom(point):point;
+  walk(field=heightMap){
+    const inRoom=point=>point.onPaper?field.warp.inRoom(point):point;
     if(this.path[0]&&nearPoint(this,inRoom(this.path[0]),9)){
       this.safe={...this.path.shift()};
       this.stall=0;
     }
-    this.move(inRoom(this.path[0]||this.safe));
+    this.move(inRoom(this.path[0]||this.safe),field);
     if(this.stall>1.15){
       // A section can close before the companion enters. Retreat to its last
       // reached point, on the same side of the obstruction, and try again.

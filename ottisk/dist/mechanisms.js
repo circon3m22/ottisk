@@ -26,7 +26,7 @@ function inkConnection(a,b,pools){
   while(queue.length){const pool=queue.shift();if(inkTouchesContact(pool,b))return true;for(const other of live)if(!visited.has(other)&&inkBodiesTouch(pool,other)){visited.add(other);queue.push(other);}}
   return false;
 }
-function sheetOffset(){return levelNumber===4?-(mechanisms?.feedDistance||0):0;}
+function sheetOffset(){return levelNumber===4||levelNumber===12||levelNumber===16?-(mechanisms?.feedDistance||0):0;}
 
 class PrintMechanisms {
   constructor(){
@@ -219,6 +219,7 @@ function drawCampaignFloor(){
   ctx.restore();
 }
 function drawCampaignDevices(){
+  if(mechanisms?.layer==='under')return;
   if(levelNumber===3){
     for(const c of topoLayout.circuits)for(const sign of [-1,1]){
       const x=c.x+sign*c.gap/2;ctx.beginPath();ctx.arc(x,c.y,6,0,TAU);ctx.strokeStyle='#b06e4a';ctx.lineWidth=1.7;ctx.stroke();
@@ -227,7 +228,7 @@ function drawCampaignDevices(){
   if(opening>0){
     ctx.save();ctx.globalAlpha=unlocked?1:opening;traceWire(ctx);ctx.strokeStyle=rust;ctx.lineWidth=1.8;ctx.lineCap='round';const p=exitWireProgress();ctx.setLineDash(p>=1?[]:[exitWireLength*p,exitWireLength+4]);ctx.stroke();ctx.restore();
   }
-  drawPortal();
+  if(levelNumber===16)mechanisms.drawExit();else drawPortal();
 }
 function drawRollers(){
   if(levelNumber!==4)return;

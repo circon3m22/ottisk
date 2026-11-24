@@ -10,7 +10,7 @@ function load(level){
   const element=()=>({textContent:'',open:false,width:0,height:0,addEventListener(){},setAttribute(){},getContext(){return {};},focus(){},close(){this.open=false;},showModal(){this.open=true;}});
   const elements=new Map(),document={hidden:false,querySelector(id){if(!elements.has(id))elements.set(id,element());return elements.get(id);},createElement:element,addEventListener(){}};
   const context=vm.createContext({console,document,OTTISK_LEVEL:level,innerWidth:1440,innerHeight:900,devicePixelRatio:1,matchMedia:()=>({matches:false}),window:{addEventListener(){}},requestAnimationFrame(){},GameSound:class{silence(){}play(){}activate(){}rolling(){}}});
-  const source=['levels.js','terrain.js','physics.js','mechanisms.js','later-levels.js','tutorial.js','game.js'].map(f=>fs.readFileSync(path.join(root,f),'utf8')).join('\n');
+  const source=['levels.js','terrain.js','physics.js','mechanisms.js','later-levels.js','final-levels.js','epilogue.js','tutorial.js','game.js'].map(f=>fs.readFileSync(path.join(root,f),'utf8')).join('\n');
   vm.runInContext(source.replace('drawTerrain();reset();size();window.addEventListener(\'resize\',size);requestAnimationFrame(frame);','reset();size();'),context);
   return context;
 }
@@ -19,7 +19,7 @@ const shared=`
   const check=(condition,message)=>{if(!condition){console.log({ink:drop.ink,spool:spool&&{x:spool.x,y:spool.y,position:spool.position,length:spool.rail.length},pools:inkPools.map(p=>({x:p.x,y:p.y,amount:p.amount})),gateOpening,links:mechanisms?.links,cupLoads});throw Error(message+' at '+drop.x.toFixed(1)+','+drop.y.toFixed(1)+' / '+tutorial.stage);}console.log('PASS: '+message);};
   const run=(n,x=drop.x,y=drop.y)=>{pointer=null;target={x,y};for(let i=0;i<n&&flowTime===null;i++)update();};
   const go=(x,y,n=2400)=>{pointer=null;target={x,y};for(let i=0;i<n&&flowTime===null&&Math.hypot(drop.x-x,drop.y-y)>6;i++)update();if(flowTime===null&&Math.hypot(drop.x-x,drop.y-y)>15)throw Error('Route '+x+','+y+' blocked at '+drop.x.toFixed(1)+','+drop.y.toFixed(1));};
-  const push=object=>{for(let i=0;i<6000&&!object.seated;i++){const p=object.rail.point(object.position);target={x:object.x+p.tx*110,y:object.y+p.ty*110};update();}check(object.seated,'curved '+(object===weight?'heavy weight':'light spool')+' seats');};
+  const push=object=>{for(let i=0;i<6000&&!object.seated;i++){const p=object.rail.point(object.position);target={x:object.x+p.tx*110,y:object.y+p.ty*110};update();}check(object.seated,'curved '+(object===spool?'light spool':'heavy weight')+' seats');};
   const curve=points=>heightMap.curveSegments(points,1,1,24,-1).filter((_,i)=>i%3===2).map(p=>[p.x+p.dx,p.y+p.dy]);
   const finish=()=>{check(flowTime!==null,'continuous exit starts');for(let i=0;i<200&&!solved;i++)advanceFlow(1/120);check(solved&&completion.open,'exit completes without hanging');};
 `;
@@ -146,7 +146,7 @@ const pointerRoute=`
   const travel=(x,y,n=2200)=>{
     steer(x,y);
     for(let i=0;i<n&&flowTime===null&&Math.hypot(drop.x-x,drop.y-y)>6;i++)update();
-    if(flowTime===null&&Math.hypot(drop.x-x,drop.y-y)>14)throw Error('Pointer route '+x+','+y+' blocked at '+drop.x.toFixed(1)+','+drop.y.toFixed(1));
+    if(flowTime===null&&Math.hypot(drop.x-x,drop.y-y)>14)throw Error('Pointer route '+x+','+y+' blocked at '+drop.x.toFixed(1)+','+drop.y.toFixed(1)+' with ink '+drop.ink.toFixed(3));
   };
 `;
 
@@ -257,6 +257,141 @@ verify(shared+pointerRoute+`
   travel(740,1130);travel(530,1290);for(const p of curve(topoLayout.gate.points))travel(...p);
   travel(620,1920);travel(well.x,well.y);finish();
 `,load(10));}
+
+const finalRoute=`
+  const along=(gate,reverse=false)=>{
+    const route=[gate.points[0],...curve(gate.points)];
+    if(reverse)route.reverse();
+    for(const p of route)travel(...p);
+  };
+  const pour=(point,ticks)=>{
+    travel(point.x,point.y+76);travel(point.x,point.y-30);
+    shedding=true;step(ticks);steer(point.x,point.y-140);step(30);shedding=false;
+    travel(point.x,point.y-140);step(220);
+  };
+  const collect=(x,y)=>{travel(x,y);step(235);};
+  const totalInk=()=>drop.ink+shedAmount+inkPools.reduce((total,pool)=>total+pool.amount,0);
+`;
+
+if(!selected||selected===11){console.log('LEVEL 11');
+verify(shared+pointerRoute+finalRoute+`
+  const [entry,exit]=topoLayout.hatches;
+  travel(entry.x,entry.y);step(25);
+  check(mechanisms.layer==='under'&&heightMap===undersideMap,'the first hatch switches the terrain collider');
+  steer(550,1260);step(400);
+  check(drop.y<1135&&gateOpening===0,'underside fold stays closed with no ink on the upper cup');
+  travel(entry.x,entry.y);step(25);
+  check(mechanisms.layer==='surface'&&inkPools.length===0,'the same hatch returns the mouse to the upper sheet');
+  pour(topoLayout.cups[0],145);
+  check(cupLoads[0]>.30,'upper cup has enough free ink to lower the fold');
+  const carried=drop.ink;
+  travel(entry.x,entry.y);step(180);
+  check(mechanisms.layer==='under'&&inkPools.length===0&&mechanisms.pools.surface.length>0&&Math.abs(drop.ink-carried)<.0001,'upper ink stays above while the body goes below');
+  along(topoLayout.underside.gate);travel(745,1590);step(140);
+  check(mechanisms.latched,'the underside catch opens the path above');
+  travel(exit.x,exit.y);step(50);
+  check(mechanisms.layer==='surface'&&drop.y>1700,'the far hatch reaches the lower pocket on the upper sheet');
+  travel(1000,1680);along(topoLayout.gate,true);collect(922,700);
+  check(drop.ink>.72,'the ink left on the upper sheet can be reclaimed');
+  along(topoLayout.gate);travel(745,1930);step(410);
+  check(mechanisms.powered&&unlocked,'recovered mass and the companion meet at the top exit');
+  travel(well.x,well.y);finish();
+  reset();
+  check(heightMap===surfaceMap&&surfaceMap.opening===0&&undersideMap.opening===0,'replay restores both layers and closes the fold');
+`,load(11));}
+
+if(!selected||selected===12){console.log('LEVEL 12');
+verify(shared+pointerRoute+finalRoute+`
+  collect(345,520);collect(960,550);
+  travel(365,755);pointer=null;push(weight);step(180);
+  check(gateOpening===1&&!mechanisms.running,'the seated roller raises the clamp without starting feed');
+  travel(627,1090);shedding=true;step(246);shedding=false;
+  along(topoLayout.gate);travel(plate.x,plate.y);step(430);
+  check(mechanisms.stopped&&sheetOffset()<-150&&unlocked,'the sheet moves as one coordinate system and stops at the light');
+  travel(well.x,well.y);finish();
+`,load(12));}
+
+if(!selected||selected===13){console.log('LEVEL 13');
+verify(shared+pointerRoute+finalRoute+`
+  const startInk=totalInk();
+  travel(810,770);step(340);
+  check(mechanisms.tankInk>.1,'free ink pulled into the drain is held by the reservoir');
+  steer(topoLayout.drain.x,topoLayout.drain.y);step(480);
+  check(mechanisms.hits>0&&!mechanisms.rewind&&drop.y<700,'unsafe suction recovers the light mouse at a safe pocket');
+  check(Math.abs(totalInk()+mechanisms.tankInk-startInk)<1e-7,'suction preserves the full stock across recovery');
+  collect(925,480);collect(960,700);
+  travel(plate.x,plate.y);step(220);
+  check(mechanisms.redirected&&mechanisms.tankInk===0&&gateOpening===1,'heavy body redirects suction and opens access to the reservoir');
+  check(Math.abs(totalInk()-startInk)<1e-7,'reservoir releases all captured ink on the outlet side');
+  along(topoLayout.gate);collect(topoLayout.tank.x,topoLayout.tank.y);
+  travel(865,1590);travel(480,1590);travel(480,1490);pointer=null;push(weight);step(200);
+  along(topoLayout.lowerGate);travel(840,2240);step(180);
+  check(mechanisms.sent&&unlocked,'the side counterweight releases the companion from the grate');
+  travel(well.x,well.y);finish();
+`,load(13));}
+
+if(!selected||selected===14){console.log('LEVEL 14');
+verify(shared+pointerRoute+finalRoute+`
+  const [a,b]=topoLayout.cups;
+  collect(335,398);pour(a,173);
+  check(cupLoads[0]>=.43&&cupLoads[1]<.02,'a single stock energizes the first cup');
+  along(topoLayout.gate);travel(1020,1170);step(50);
+  check(mechanisms.fixed[0],'first fixing contact latches the bridge from its far end');
+  along(topoLayout.gate,true);collect(a.x,a.y);
+  check(cupLoads[0]<.03&&drop.ink>.74&&gateOpening===1,'first bridge stays open after taking the ink back');
+  along(topoLayout.gate);pour(b,173);
+  check(cupLoads[1]>=.43&&lowerOpening===1,'the reclaimed ink powers bridge two');
+  along(topoLayout.lowerGate);travel(635,2150);step(50);
+  check(mechanisms.fixed[1],'second bridge latches independently');
+  along(topoLayout.lowerGate,true);collect(b.x,b.y);
+  check(cupLoads[1]<.03&&drop.ink>.72&&lowerOpening===1,'second cup can be emptied without blocking the return');
+  along(topoLayout.lowerGate);travel(plate.x,plate.y);step(380);
+  check(unlocked,'returned ink powers the edge contact and the companion reaches the exit');
+  travel(well.x,well.y);finish();
+`,load(14));}
+
+if(!selected||selected===15){console.log('LEVEL 15');
+verify(shared+pointerRoute+finalRoute+`
+  travel(365,690);pointer=null;push(weight);step(100);
+  check(gateOpening===0&&!unlocked,'the first weight needs an ink bridge before it powers the passage');
+  pour(topoLayout.circuits[0],104);
+  check(mechanisms.connected&&gateOpening===1,'physical contact across the bridge opens the second chamber');
+  travel(735,875);travel(735,1070);along(topoLayout.gate);travel(890,1650);
+  check(mechanisms.bridgeLatched&&mechanisms.connected,'the first bridge survived the crossing and latched from the far bank');
+  shedding=true;step(190);
+  for(const p of heightMap.guides)travel(...p);
+  shedding=false;
+  travel(970,2100);step(200);
+  check(mechanisms.hold&&lowerOpening===1,'the small body reaches the wide return catch');
+  along(topoLayout.lowerGate,true);collect(890,1620);collect(855,1700);
+  along(topoLayout.gate,true);collect(610,997);
+  check(drop.ink>.58&&!mechanisms.connected&&gateOpening===1,'the ink bridge can be reclaimed for weight two');
+  along(topoLayout.gate);along(topoLayout.lowerGate);travel(475,2100);travel(470,2200);pointer=null;push(mechanisms.second);step(230);
+  check(mechanisms.awakened&&unlocked,'the second weight raises the clamp and wakes the old ink bodies');
+  travel(well.x,well.y);finish();
+`,load(15));}
+
+if(!selected||selected===16){console.log('LEVEL 16');
+verify(shared+pointerRoute+finalRoute+`
+  const cup=topoLayout.cups[0];
+  pour(cup,212);
+  check(cupLoads[0]>=.52&&gateOpening===1,'the final side cup holds the narrow guide open');
+  along(topoLayout.gate);travel(730,1690);step(220);
+  check(mechanisms.returnOpen&&lowerOpening===1&&mechanisms.sent,'the far latch opens the wide passage for the whole party');
+  along(topoLayout.lowerGate,true);collect(cup.x,cup.y);
+  check(drop.ink>.77&&gateOpening===1&&lowerOpening===1,'the ink can be recovered while the final paths stay open');
+  along(topoLayout.lowerGate);travel(plate.x,plate.y);step(560);
+  check(unlocked&&mechanisms.party.every(actor=>nearPoint(actor,well,165))&&sheetOffset()<-220,'the paper feeds toward the light with all four companions');
+  travel(well.x,well.y);
+  check(flowTime!==null,'the whole party starts entering the white opening');
+  for(let i=0;i<180&&!solved;i++)advanceFlow(stepTime);
+  check(solved&&mechanisms.epilogueTime===0&&!completion.open,'the last portal starts the epilogue, not the usual dialog');
+  mechanisms.advanceEpilogue(8);
+  mechanisms.beginEpilogue();
+  check(mechanisms.epilogueTime===8,'the epilogue cannot restart once triggered');
+  mechanisms.advanceEpilogue(11);
+  check(mechanisms.epilogueFinished&&completion.open,'the finish dialog follows the complete epilogue');
+`,load(16));}
 
 if(browserMode){
   fs.writeFileSync(path.join(root,'browser-tests.js'),'window.OTTISK_TESTS='+JSON.stringify(browserCases)+';\n');

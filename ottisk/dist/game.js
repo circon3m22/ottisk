@@ -20,7 +20,8 @@ let elapsed=0,prev=0,lag=0,started=false,touchId=null;
 let contourTime=0;
 let tutorial,gateOpening=0;
 const keys=new Set();
-const terrain=new ContourPainting(heightMap);
+const terrain=new ContourPainting(surfaceMap);
+const undersideTerrain=undersideMap?new ContourPainting(undersideMap):null;
 const worldFrame=document.createElement('canvas'),worldCtx=worldFrame.getContext('2d');
 let activationAge=-1,activationBlend=0,exitRest=0,portalAge=0,flowLift=0,buttonPress=0;
 let bypassOpened=false,gateAge=-1,headAge=-1,lowerOpening=0,spool=null,cupLoads=[],sealPress=0;
@@ -53,7 +54,7 @@ function railPath(c,rail=mainRail){
 function socketWire(c){
   traceCurves(c,topoLayout.mechanismWire);
 }
-function drawTerrain(){terrain.prepare();}
+function drawTerrain(){terrain.prepare();undersideTerrain?.prepare();}
 function drawFloorPrint(){
   if(levelNumber>=6){mechanisms.drawFloor();return;}
   if(levelNumber>=3){drawCampaignFloor();return;}
@@ -82,12 +83,15 @@ function reset(){
   if(completion.open)completion.close();
   sound.silence();marks=[];flowTime=null;flowEnded=false;onPlateBefore=false;impactWait=0;
   shedding=false;shedTime=0;shedAmount=0;inkSoundWait=0;
-  elapsed=0;contourTime=0;heightMap.warp.update(null);
+  elapsed=0;contourTime=0;heightMap=surfaceMap;heightMap.warp.update(null);
+  surfaceMap.setOpenings(0,0);undersideMap?.setOpenings(0,0);
   helpShown=false;helpButton?.setAttribute('aria-pressed','false');
-  inkPools=topoLayout.inkSources.map(([x,y],i)=>new InkDrop(x,y,i*1.8,.24));
-  mechanisms=levelNumber>=6?new laterChapters[levelNumber]():levelNumber>=3?new PrintMechanisms():null;
-  tutorial=levelNumber>=3?new PrintedLesson():levelNumber===2?new EyeletLesson():new FirstImprint();gateOpening=0;heightMap.opening=0;barriers.length=0;activationAge=-1;activationBlend=0;exitRest=0;portalAge=0;buttonPress=0;flowLift=0;
-  bypassOpened=false;gateAge=-1;headAge=-1;lowerOpening=0;heightMap.secondaryOpening=0;cupLoads=[0,0];sealPress=0;
+  inkPools=topoLayout.inkSources.map(([x,y,amount=.24],i)=>new InkDrop(x,y,i*1.8,amount));
+  mechanisms=levelNumber>=11?new finalChapters[levelNumber]():levelNumber>=6?new laterChapters[levelNumber]():levelNumber>=3?new PrintMechanisms():null;
+  document.querySelector('#skip-ending')?.classList?.add('hidden');
+  document.querySelector('main')?.classList?.remove('ending');
+  tutorial=levelNumber>=3?new PrintedLesson():levelNumber===2?new EyeletLesson():new FirstImprint();gateOpening=0;barriers.length=0;activationAge=-1;activationBlend=0;exitRest=0;portalAge=0;buttonPress=0;flowLift=0;
+  bypassOpened=false;gateAge=-1;headAge=-1;lowerOpening=0;cupLoads=[0,0];sealPress=0;
   spool=topoLayout.spool?new Counterweight({rail:createRail(topoLayout.spool.start,topoLayout.spool.socket),minimumInk:0,radius:23,lockAtEnd:false}):null;
   drop=new Drop(spawn.x,spawn.y,topoLayout.initialInk);
   weight=new Counterweight(levelNumber===6?{minimumInk:.36,lockAtEnd:false}:undefined);
@@ -124,6 +128,7 @@ canvas.addEventListener('lostpointercapture',()=>{touchId=null;shedding=false;})
 function replay(){sound.activate();reset();canvas.focus({preventScroll:true});}
 document.querySelector('#reset').onclick=replay;
 document.querySelector('#replay').onclick=replay;
+document.querySelector('#skip-ending')?.addEventListener('click',()=>mechanisms?.finishEpilogue?.());
 completion.addEventListener('cancel',e=>{e.preventDefault();replay();});
 window.addEventListener('keydown',e=>{
   if(['SELECT','BUTTON','A','DIALOG'].includes(e.target?.tagName))return;
@@ -139,6 +144,7 @@ window.addEventListener('keyup',e=>{if(e.code==='Space')shedding=false;if(keys.d
 window.addEventListener('blur',()=>{keys.clear();shedding=false;stopPointer();sound.silence();});
 document.addEventListener('visibilitychange',()=>{prev=0;lag=0;if(document.hidden){shedding=false;sound.silence();}});
 function updateInk(){
+  const receivers=mechanisms?.inkReceivers??[...(topoLayout.cups||[]),...(topoLayout.circuits||[])];
   inkSoundWait=Math.max(0,inkSoundWait-stepTime);
   drop.absorbing=0;drop.shedding=shedding&&drop.ink>0;
   if(shedding && drop.ink>0){
@@ -146,7 +152,7 @@ function updateInk(){
     drop.ink-=amount;
     let dx=-Math.cos(drop.heading),dy=-Math.sin(drop.heading);
     // An etched recess draws the released liquid towards its centre.
-    const receiver=[...(topoLayout.cups||[]),...(topoLayout.circuits||[])].find(p=>Math.hypot(p.x-drop.x,p.y-drop.y)<drop.bodyRadius+24);
+    const receiver=receivers.find(p=>Math.hypot(p.x-drop.x,p.y-drop.y)<drop.bodyRadius+24);
     if(receiver){const distance=Math.hypot(receiver.x-drop.x,receiver.y-drop.y)||1;dx=(receiver.x-drop.x)/distance;dy=(receiver.y-drop.y)/distance;}
     const reach=receiver?drop.bodyRadius*.75:drop.bodyRadius+5;
     const x=drop.x+dx*reach,y=drop.y+dy*reach;
@@ -167,7 +173,7 @@ function updateInk(){
   }
   for(const pool of inkPools){
     pool.inBasin=false;
-    for(const cup of [...(topoLayout.cups||[]),...(topoLayout.circuits||[])]){
+    for(const cup of receivers){
       if(Math.hypot(pool.x-cup.x,pool.y-cup.y)<59){pool.inBasin=true;pool.vx+=(cup.x-pool.x)*10*stepTime;pool.vy+=(cup.y-pool.y)*10*stepTime;}
     }
     if(pool.advance(drop,!shedding)){
@@ -237,7 +243,8 @@ function advanceFlow(seconds){
   if(flowTime>=1){
     exitRest+=seconds;
     if(exitRest>(reduced.matches?.05:.24)){
-      solved=true;keys.clear();hint.textContent='';objective.textContent='';completion.showModal();
+      solved=true;keys.clear();hint.textContent='';objective.textContent='';
+      if(levelNumber===16)mechanisms.beginEpilogue();else completion.showModal();
     }
   }
 }
@@ -255,6 +262,7 @@ function update(){
     elapsed+=stepTime;return;
   }
   barriers.length=0;heightMap.setOpenings(gateOpening,lowerOpening);
+  mechanisms?.beforeStep?.();
   updateInk();
   const scale=baseScale*camera.zoom;
   if(pointer){
@@ -265,7 +273,7 @@ function update(){
   }
   target.x=clamp(target.x,limits.left+3,limits.right-3);target.y=clamp(target.y,limits.top+3,limits.bottom-3);
   const lastStride=drop.stride,wasSeated=weight.seated,wasSpoolSeated=spool?.seated,oldX=drop.x,oldY=drop.y;
-  drop.advance(target,spool?[weight,spool]:hasWeight()?weight:null);
+  drop.advance(target,spool?[weight,spool]:mechanisms?.weights?[weight,...mechanisms.weights]:hasWeight()?weight:null);
   mechanisms?.advance();
   const event=tutorial.advance(drop,weight,Math.hypot(drop.x-oldX,drop.y-oldY),target,{bypassOpened,spoolSeated:spool?.seated,spoolAtStart:spool?.atStart,unlocked});
   if(event.reveal)ripple(inkPools[0]?.x||drop.x,inkPools[0]?.y||drop.y,14,'#586c57');
@@ -293,10 +301,11 @@ function update(){
   const focusX=started?mid+(drop.x-mid)*follow:spawn.x;
   const minCameraY=levelNumber===1?limits.top+145:spawn.y+55;
   let focusY=started?clamp(drop.y+135,minCameraY,limits.bottom-200):spawn.y+55;
+  if(mechanisms?.cameraView)focusY=mechanisms.cameraView.y;
   if(levelNumber===5&&mechanisms.dotFlash>=0&&mechanisms.dotFlash<4)focusY=1335;
   focusY+=sheetOffset();
   camera.x=approach(camera.x,focusX,2.7);camera.y=approach(camera.y,focusY,2.7);
-  const zoom=levelNumber===4&&mechanisms.revealAge>=0?.58:levelNumber===5&&mechanisms.dotFlash>=0&&mechanisms.dotFlash<4?.73:!started?1.52:reduced.matches?1.15:1.26-.32*clamp(speed/360,0,1);
+  const zoom=mechanisms?.cameraView?.zoom??(levelNumber===4&&mechanisms.revealAge>=0?.58:levelNumber===5&&mechanisms.dotFlash>=0&&mechanisms.dotFlash<4?.73:!started?1.52:reduced.matches?1.15:1.26-.32*clamp(speed/360,0,1));
   camera.zoom=approach(camera.zoom,zoom,1.65);
   const onPlate=Math.hypot(drop.x-plate.x,drop.y-plate.y)<33;
   const plateLatched=levelNumber===2?bypassOpened:unlocked;
@@ -519,10 +528,11 @@ function drawPrinterShadow(){
   ctx.restore();
 }
 function draw(){
+  if(mechanisms?.epilogueTime>=0){ctx=screenCtx;drawEpilogue(mechanisms.epilogueTime);return;}
   ctx=worldCtx;ctx.setTransform(dpr,0,0,dpr,0,0);ctx.fillStyle=paper;ctx.fillRect(0,0,width,height);
   const s=baseScale*camera.zoom;
   ctx.translate(width/2,height/2);ctx.scale(s,s*tilt);ctx.translate(-camera.x,-camera.y+sheetOffset());
-  terrain.draw(ctx);
+  (heightMap===undersideMap?undersideTerrain:terrain).draw(ctx);
   if(activationBlend>0){
     ctx.save();ctx.globalCompositeOperation='multiply';ctx.fillStyle='rgba(119,171,194,'+(activationBlend*.26)+')';
     ctx.fillRect(camera.x-width/s,camera.y-height/(s*tilt),2*width/s,2*height/(s*tilt));ctx.restore();
@@ -530,11 +540,13 @@ function draw(){
   drawFloorPrint();drawInk();devices();drawMarks();
   const actors=hasWeight()?[drop,weight]:[drop];
   if(spool)actors.push(spool);
-  const companion=mechanisms?.companion;
+  if(mechanisms?.weights)actors.push(...mechanisms.weights);
+  const companion=mechanisms?.layer==='under'?null:mechanisms?.companion;
   if(companion)actors.push(companion);
+  if(mechanisms?.crew)actors.push(...mechanisms.crew);
   actors.sort((a,b)=>a.y-b.y).forEach(actor=>{
     if(actor===drop)drawDrop();
-    else if(actor===companion)companion.draw();
+    else if(actor instanceof PaperCompanion)actor.draw();
     else drawWeight(actor);
   });
   portalForeground();
@@ -569,8 +581,9 @@ function frame(time){
   prev=time;
   while(lag>=stepTime){update();lag-=stepTime;}
   if(flowing)advanceFlow(seconds);
+  if(mechanisms?.epilogueTime>=0)mechanisms.advanceEpilogue(seconds);
   sound.rolling(flowTime===null?(Math.abs(weight.speed)+Math.abs(spool?.speed||0)*.35)/150:0);
   draw();requestAnimationFrame(frame);
 }
-function hasWeight(){return levelNumber<=2||levelNumber===6||levelNumber===7;}
+function hasWeight(){return levelNumber<=2||levelNumber===6||levelNumber===7||levelNumber===12||levelNumber===13||levelNumber===15;}
 drawTerrain();reset();size();window.addEventListener('resize',size);requestAnimationFrame(frame);

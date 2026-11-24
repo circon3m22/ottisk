@@ -167,6 +167,83 @@ const levelLayouts={
     pilot:{x:960,y:1785},waitAt:{x:755,y:2040},bodyRequired:.5,
     exitWire:[[[960,1785],[860,1870],[700,1940],[681,2080]]],
     mechanismWire:[[[1000,1220],[1040,1320],[1015,1410],[960,1440]]]
+  },
+  11:{
+    name:'Между слоями',worldSize:{width:1510,height:2490},spawn:{x:610,y:255},initialInk:.78,
+    railStart:{x:100,y:100},socket:{x:200,y:180},plate:{x:745,y:1930},well:{x:760,y:2190},passage:{},inkSources:[],
+    palette:{floor:[239,236,220],ridge:[174,185,164],line:'85,103,85'},
+    rooms:[[680,610,510,520],[720,1950,415,390]],paths:[],
+    gate:{bounds:{left:875,top:885,width:500,height:820},points:[[960,960],[1240,1180],[1190,1430],[1000,1680]],radius:67},
+    underside:{
+      palette:{floor:[201,213,207],ridge:[117,145,148],line:'53,87,92'},
+      rooms:[[550,845,285,245],[780,1715,365,330]],paths:[],
+      gate:{bounds:{left:365,top:980,width:655,height:550},points:[[555,1040],[535,1220],[830,1215],[820,1450]],radius:65}
+    },
+    hatches:[{x:550,y:805},{x:820,y:1770}],cups:[{x:922,y:700}],cupRequired:.30,bodyRequired:.56,
+    underLatch:{x:745,y:1590},companionSpawn:{x:538,y:294},
+    mechanismWire:[[[922,700],[1010,800],[990,900],[960,960]],[[960,960],[1240,1180],[1190,1430],[1000,1680]]],
+    exitWire:[[[745,1930],[645,2030],[850,2070],[760,2190]]]
+  },
+  12:{
+    name:'Подача',worldSize:{width:1490,height:2480},spawn:{x:540,y:250},initialInk:.18,
+    railStart:{x:475,y:755},socket:{x:835,y:1000},plate:{x:725,y:1940},well:{x:735,y:2200},passage:{},
+    palette:{floor:[241,231,210],ridge:[192,177,153],line:'113,91,70'},
+    rooms:[[660,620,550,560],[735,1940,455,350]],paths:[],
+    gate:{bounds:{left:480,top:1020,width:510,height:795},points:[[640,1100],[620,1290],[810,1470],[735,1700]],radius:27.5},
+    inkSources:[[345,520],[960,550],[250,800]],companionSpawn:{x:470,y:280},
+    mechanismWire:[[[835,1000],[815,1080],[650,1010],[640,1100]],[[640,1100],[620,1290],[810,1470],[735,1700]]],
+    exitWire:[[[725,1940],[615,2040],[840,2050],[735,2200]]]
+  },
+  13:{
+    name:'Прочистка',worldSize:{width:1570,height:2630},spawn:{x:600,y:270},initialInk:.19,
+    railStart:{x:575,y:1490},socket:{x:875,y:1730},plate:{x:915,y:947},well:{x:840,y:2365},passage:{},
+    palette:{floor:[221,231,225],ridge:[151,188,184],line:'56,102,101'},
+    rooms:[[660,610,550,505],[775,1550,420,310],[840,2240,390,295]],paths:[],
+    gate:{bounds:{left:660,top:980,width:555,height:495},points:[[925,1005],[1090,1145],[1025,1275],[1005,1390]],radius:68},
+    lowerGate:{bounds:{left:555,top:1700,width:560,height:495},points:[[760,1760],[650,1920],[935,1950],[840,2090]],radius:65},
+    drain:{x:550,y:955},tank:{x:1020,y:1515},captive:{x:840,y:2190},
+    inkSources:[[370,438],[925,480],[960,700],[545,870,.17]],
+    mechanismWire:[[[550,955],[690,860],[790,968],[915,947]],[[915,947],[1105,1110],[950,1330],[1020,1515]]],
+    exitWire:[[[875,1730],[895,1890],[700,2040],[840,2090]],[[840,2090],[950,2180],[773,2240],[840,2365]]]
+  },
+  14:{
+    name:'Белая полоса',worldSize:{width:1610,height:2720},spawn:{x:630,y:250},initialInk:.11,
+    railStart:{x:100,y:100},socket:{x:200,y:180},plate:{x:620,y:2260},well:{x:687,y:2480},passage:{},
+    palette:{floor:[250,247,234],ridge:[222,220,197],line:'140,129,100'},
+    rooms:[[630,530,540,440],[960,1350,398,295],[635,2270,470,345]],paths:[],
+    gate:{bounds:{left:490,top:840,width:740,height:515},points:[[620,875],[615,1060],[1080,1005],[1050,1230]],radius:71},
+    lowerGate:{bounds:{left:460,top:1510,width:900,height:630},points:[[1050,1540],[1130,1780],[520,1730],[615,2110]],radius:68},
+    cups:[{x:405,y:650},{x:1170,y:1330}],cupRequired:.43,
+    fixPoints:[{x:1020,y:1170},{x:635,y:2150}],lookout:{x:810,y:585},
+    inkSources:[[335,398,.67]],companionSpawn:{x:565,y:285},waitAt:{x:750,y:2375},bodyRequired:.54,
+    mechanismWire:[[[405,650],[440,810],[560,785],[620,875]],[[620,875],[615,1060],[1080,1005],[1050,1230]],[[1170,1330],[1280,1460],[1205,1530],[1050,1540]],[[1050,1540],[1130,1780],[520,1730],[615,2110]]],
+    exitWire:[[[620,2260],[705,2310],[630,2400],[687,2480]]]
+  },
+  15:{
+    name:'Ошибка остаётся',worldSize:{width:1600,height:2860},spawn:{x:590,y:270},initialInk:.84,
+    railStart:{x:460,y:690},socket:{x:840,y:965},plate:{x:970,y:2100},well:{x:680,y:2510},passage:{},
+    secondRail:{start:{x:575,y:2200},finish:{x:950,y:2400}},
+    palette:{floor:[235,227,221],ridge:[182,161,171],line:'111,73,92'},
+    rooms:[[675,625,560,515],[975,1545,375,230],[745,2250,490,370]],
+    paths:[{points:[[900,1720],[875,1880],[530,1830],[560,2030]],r0:27.5,r1:27.5,guide:true}],
+    gate:{bounds:{left:530,top:1030,width:630,height:495},points:[[620,1080],[640,1260],[955,1230],[960,1410]],radius:72},
+    lowerGate:{bounds:{left:870,top:1620,width:520,height:510},points:[[1070,1650],[1305,1800],[1260,1950],[1060,2040]],radius:72},
+    circuits:[{x:610,y:997,gap:32}],inkSources:[],
+    companionSpawn:{x:522,y:310},kin:[{x:365,y:2270},{x:480,y:2360},{x:855,y:2490}],
+    mechanismWire:[[[840,965],[825,1040],[685,985],[626,997]],[[626,997],[615,1030],[620,1050],[620,1080]],[[620,1080],[640,1260],[955,1230],[960,1410]],[[1070,1650],[1305,1800],[1260,1950],[1060,2040]]],
+    exitWire:[[[950,2400],[900,2530],[760,2545],[680,2510]]]
+  },
+  16:{
+    name:'Поле',worldSize:{width:1520,height:2580},spawn:{x:685,y:265},initialInk:.82,
+    railStart:{x:100,y:100},socket:{x:200,y:180},plate:{x:745,y:1950},well:{x:760,y:2300},passage:{},inkSources:[],
+    palette:{floor:[248,245,224],ridge:[204,203,165],line:'119,115,75'},
+    rooms:[[680,620,550,460],[740,1930,480,475]],paths:[],
+    gate:{bounds:{left:420,top:950,width:580,height:670},points:[[585,1010],[615,1210],[820,1240],[750,1550]],radius:27},
+    lowerGate:{bounds:{left:125,top:815,width:560,height:910},points:[[355,910],[140,1170],[220,1430],[480,1620]],radius:76},
+    cups:[{x:995,y:680}],cupRequired:.52,bodyRequired:.63,returnLatch:{x:730,y:1690},
+    companionSpawn:{x:602,y:317},kin:[{x:510,y:499},{x:430,y:610},{x:695,y:505}],
+    mechanismWire:[[[995,680],[1000,940],[730,887],[585,1010]],[[585,1010],[615,1210],[820,1240],[750,1550]],[[355,910],[140,1170],[220,1430],[480,1620]]],
+    exitWire:[[[745,1950],[620,2100],[885,2170],[760,2300]]]
   }
 };
 const levelNumber=Object.hasOwn(levelLayouts,globalThis.OTTISK_LEVEL)?Number(globalThis.OTTISK_LEVEL):1;

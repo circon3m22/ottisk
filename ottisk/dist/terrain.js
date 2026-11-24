@@ -56,19 +56,20 @@ class TerrainWarp {
 // One scalar field is shared by the contour engraving and every collision.
 // Negative heights are walkable valleys; positive heights are green ridges.
 class ContourField {
-  constructor(){
+  constructor(layout=topoLayout,warp=null){
+    this.layout=layout;
     this.step=6;this.left=-850;this.top=-850;
-    this.nx=Math.ceil((topoLayout.worldSize.width+1700)/this.step)+1;this.ny=Math.ceil((topoLayout.worldSize.height+1700)/this.step)+1;
+    this.nx=Math.ceil((layout.worldSize.width+1700)/this.step)+1;this.ny=Math.ceil((layout.worldSize.height+1700)/this.step)+1;
     this.width=(this.nx-1)*this.step;this.height=(this.ny-1)*this.step;
-    this.warp=new TerrainWarp(this);
+    this.warp=warp||new TerrainWarp(this);
     this.opening=0;this.secondaryOpening=0;this.segments=[];this.paths=[];this.guides=[];this.lowerGuides=[];this.bypassGuides=[];this.returnGuides=[];this.buckets=new Map();this.bucketSize=160;
     this.coreDirections=Array.from({length:16},(_,i)=>[Math.cos(i*Math.PI/8),Math.sin(i*Math.PI/8)]);
-    this.gateBounds=topoLayout.gate.bounds;
-    for(const p of topoLayout.paths)this.addPath(p.points,p.r0,p.r1,p.guide);
-    const gate=topoLayout.gate;
+    this.gateBounds=layout.gate.bounds;
+    for(const p of layout.paths)this.addPath(p.points,p.r0,p.r1,p.guide);
+    const gate=layout.gate;
     this.gatePath=this.curveSegments(gate.points,gate.radius,gate.radius,32,-1);
-    this.lowerGatePath=topoLayout.lowerGate?this.curveSegments(topoLayout.lowerGate.points,topoLayout.lowerGate.radius,topoLayout.lowerGate.radius,32,-1):[];
-    this.rooms=topoLayout.rooms;
+    this.lowerGatePath=layout.lowerGate?this.curveSegments(layout.lowerGate.points,layout.lowerGate.radius,layout.lowerGate.radius,32,-1):[];
+    this.rooms=layout.rooms;
     this.indexSegments();this.closed=new Float32Array(this.nx*this.ny);this.delta=new Float32Array(this.closed.length);this.lowerDelta=new Float32Array(this.closed.length);
     this.build();
     this.collider={terrain:this,left:-100000,right:100000,top:-100000,bottom:100000};
@@ -121,7 +122,7 @@ class ContourField {
       const candidates=this.buckets.get(Math.floor(x/this.bucketSize)+','+Math.floor(y/this.bucketSize));
       if(candidates)for(const s of candidates){const value=this.segmentDistance(x,y,s);if(value<distances[s.id])distances[s.id]=value;}
       for(let k=0;k<distances.length;k++)d=this.union(d,distances[k],22);
-      for(const [cx,cy,rx,ry]of topoLayout.islands||[]){
+      for(const [cx,cy,rx,ry]of this.layout.islands||[]){
         const ridge=(Math.hypot((x-cx)/rx,(y-cy)/ry)-1)*Math.min(rx,ry);
         d=-this.union(-d,ridge,18);
       }
@@ -131,7 +132,7 @@ class ContourField {
         let tunnel=10000;for(const seg of this.gatePath)tunnel=Math.min(tunnel,this.segmentDistance(x,y,seg));
         this.delta[index]=(this.cap(d+(this.union(d,tunnel,20)-d)*mask)+n)-closed;
       }
-      const lowerMask=topoLayout.lowerGate?this.gateMask(x,y,topoLayout.lowerGate.bounds):0;
+      const lowerMask=this.layout.lowerGate?this.gateMask(x,y,this.layout.lowerGate.bounds):0;
       if(lowerMask>0){
         let tunnel=10000;for(const seg of this.lowerGatePath)tunnel=Math.min(tunnel,this.segmentDistance(x,y,seg));
         this.lowerDelta[index]=(this.cap(d+(this.union(d,tunnel,20)-d)*lowerMask)+n)-closed;
@@ -179,7 +180,9 @@ class ContourField {
     for(let i=1;i<count;i++){const t=i/count;if(this.sample(ax+(bx-ax)*t,ay+(by-ay)*t)>0)return true;}return false;
   }
 }
-const heightMap=new ContourField();
+const surfaceMap=new ContourField();
+const undersideMap=topoLayout.underside?new ContourField({...topoLayout,...topoLayout.underside},surfaceMap.warp):null;
+let heightMap=surfaceMap;
 
 class ContourPainting {
   constructor(field){
@@ -197,8 +200,8 @@ class ContourPainting {
     this.gx=Math.floor((b.left-f.left)/f.step);this.gy=Math.floor((b.top-f.top)/f.step);
     this.gw=Math.ceil(b.width/f.step)+2;this.gh=Math.ceil(b.height/f.step)+2;
     for(let i=1;i<=terrainGateSteps;i++)this.gates[i]=this.region(this.gx,this.gy,this.gw,this.gh,i/terrainGateSteps);
-    if(topoLayout.lowerGate){
-      const b=topoLayout.lowerGate.bounds;
+    if(f.layout.lowerGate){
+      const b=f.layout.lowerGate.bounds;
       this.lx=Math.floor((b.left-f.left)/f.step);this.ly=Math.floor((b.top-f.top)/f.step);
       this.lw=Math.ceil(b.width/f.step)+2;this.lh=Math.ceil(b.height/f.step)+2;
       for(let i=1;i<=terrainGateSteps;i++)this.lowerGates[i]=this.region(this.lx,this.ly,this.lw,this.lh,0,i/terrainGateSteps);
@@ -207,8 +210,8 @@ class ContourPainting {
   color(h,gx,gy){
     const t=Math.max(0,Math.min(1,(h+8)/32)),green=t*t*(3-2*t);
     const depth=Math.max(0,Math.min(1,-h/280)),high=Math.max(0,Math.min(1,h/140));
-    const floor=(topoLayout.palette?.floor||[235,233,221]).map((v,i)=>v+depth*[8,7,12][i]);
-    const ridge=(topoLayout.palette?.ridge||[205,213,187]).map((v,i)=>v-high*[20,18,16][i]);
+    const floor=(this.field.layout.palette?.floor||[235,233,221]).map((v,i)=>v+depth*[8,7,12][i]);
+    const ridge=(this.field.layout.palette?.ridge||[205,213,187]).map((v,i)=>v-high*[20,18,16][i]);
     const light=Math.max(-3,Math.min(3,(-gx*.55-gy*.8)*2.4));
     return floor.map((v,i)=>Math.round(v+(ridge[i]-v)*green+light));
   }
@@ -238,9 +241,10 @@ class ContourPainting {
       c.fillStyle=v&1024?'rgba(61,72,54,.065)':'rgba(255,255,248,.25)';c.fillRect(px,py,.45+(v&3)*.3,.5);
     }
     c.restore();
+    const palette=f.layout.palette;
     for(let level=-392,n=0;level<=192;level+=8,n++){
       const path=this.contour(values,nx,ny,level);
-      c.strokeStyle=topoLayout.palette?(level>=0?'rgba('+topoLayout.palette.line+','+(n%4===0?.7:.5)+')':'rgba('+topoLayout.palette.line+','+(n%4===0?.37:.25)+')'):level>=0?(n%4===0?'rgba(75,99,78,.77)':'rgba(96,117,93,.63)'):
+      c.strokeStyle=palette?(level>=0?'rgba('+palette.line+','+(n%4===0?.7:.5)+')':'rgba('+palette.line+','+(n%4===0?.37:.25)+')'):level>=0?(n%4===0?'rgba(75,99,78,.77)':'rgba(96,117,93,.63)'):
         (n%4===0?'rgba(133,146,121,.48)':'rgba(153,162,138,.37)');
       c.lineWidth=n%4===0?.95:.58;c.lineCap='round';c.lineJoin='round';c.stroke(path);
     }

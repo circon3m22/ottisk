@@ -89,6 +89,12 @@ class GameSound {
       case 'paperTear': this.voice('noise',2600,310,.42,.24);this.voice('sine',90,38,.27,.17);break;
       case 'overprint': this.voice('triangle',870,260,.072,.13);this.voice('noise',360,1350,.6,.12,.07);break;
       case 'companion': this.voice('sine',560,820,.145,.095);this.voice('sine',795,1020,.22,.086,.13);break;
+      case 'fold': this.voice('noise',1540,450,.23,.16);this.voice('triangle',233,170,.15,.08);break;
+      case 'suction': this.voice('noise',260,840,1.15,.19);this.voice('sine',130,69,.76,.1);break;
+      case 'feed': this.voice('triangle',460,95,.18,.12);this.voice('noise',370,570,2.75,.14,.1);break;
+      case 'lastPage': this.voice('noise',1200,490,1.5,.14);this.voice('sine',208,79,.9,.05);break;
+      case 'pencil': this.voice('noise',2600,920,1.8,.09);break;
+      case 'lantern': this.voice('triangle',355,67,.12,.075);this.voice('noise',1800,820,.45,.07,.1);break;
       case 'plate': this.voice('triangle',275,120,.075,.21);break;
       case 'open': this.voice('noise',480,1600,.52,.25);this.voice('sine',108,172,.38,.16);break;
       case 'flowIn': this.voice('noise',620,180,.23,.12);this.voice('sine',210,82,.28,.12);break;

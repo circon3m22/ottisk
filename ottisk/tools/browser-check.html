@@ -9,7 +9,7 @@ frame.onload=()=>{
     w.console.log=(message)=>logs.push(message);
     w.eval(test.code);w.eval('draw();update=()=>{};advanceFlow=()=>{};');
     const next=w.document.querySelector('#next-level');
-    if(test.level<10&&!next?.getAttribute('href').endsWith('level'+(test.level+1)+'.html'))throw Error('Неверный переход на следующий уровень');
+    if(test.level<16&&!next?.getAttribute('href').endsWith('level'+(test.level+1)+'.html'))throw Error('Неверный переход на следующий уровень');
     results.push({level:test.level,checks:logs.filter(line=>typeof line==='string'&&line.startsWith('PASS:')).length,status:'PASS'});
     const complete=current+1===OTTISK_TESTS.length;
     report.textContent=(complete?'PASS · все маршруты пройдены':'Проверка продолжается')+'\n\n'+

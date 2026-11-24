@@ -14,3 +14,6 @@ footer span:empty{display:none}
 #next-level{background:#33392d;color:#fffdf5}
 .completion-actions a:hover{filter:brightness(1.08)}.completion-actions a:focus-visible{outline:2px solid #303831;outline-offset:3px}
 #completion:has(#next-level) #replay{background:transparent;color:#33392d}
+#skip-ending{position:absolute;right:clamp(18px,4vw,64px);bottom:24px;width:auto;padding:0 15px;border-radius:4px;font:inherit}
+#skip-ending.hidden{display:none}
+main.ending header,main.ending footer{visibility:hidden}
