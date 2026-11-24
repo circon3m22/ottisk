@@ -17,6 +17,7 @@ let inkPools=[],shedding=false,shedTime=0,shedAmount=0,inkSoundWait=0;
 const tilt=.84;
 let width,height,dpr,baseScale, camera, drop,weight,target, pointer=null, unlocked=false, solved=false, opening=0;
 let elapsed=0,prev=0,lag=0,started=false,touchId=null;
+let contourTime=0;
 let tutorial,gateOpening=0;
 const keys=new Set();
 const terrain=new ContourPainting(heightMap);
@@ -81,7 +82,7 @@ function reset(){
   if(completion.open)completion.close();
   sound.silence();marks=[];flowTime=null;flowEnded=false;onPlateBefore=false;impactWait=0;
   shedding=false;shedTime=0;shedAmount=0;inkSoundWait=0;
-  elapsed=0;
+  elapsed=0;contourTime=0;
   helpShown=false;helpButton?.setAttribute('aria-pressed','false');
   inkPools=topoLayout.inkSources.map(([x,y],i)=>new InkDrop(x,y,i*1.8,.24));
   mechanisms=levelNumber>=6?new laterChapters[levelNumber]():levelNumber>=3?new PrintMechanisms():null;
@@ -516,7 +517,7 @@ function draw(){
   ctx=worldCtx;ctx.setTransform(dpr,0,0,dpr,0,0);ctx.fillStyle=paper;ctx.fillRect(0,0,width,height);
   const s=baseScale*camera.zoom;
   ctx.translate(width/2,height/2);ctx.scale(s,s*tilt);ctx.translate(-camera.x,-camera.y+sheetOffset());
-  terrain.draw(ctx,gateOpening,lowerOpening);
+  terrain.draw(ctx,gateOpening,lowerOpening,reduced.matches?null:contourTime);
   if(activationBlend>0){
     ctx.save();ctx.globalCompositeOperation='multiply';ctx.fillStyle='rgba(119,171,194,'+(activationBlend*.26)+')';
     ctx.fillRect(camera.x-width/s,camera.y-height/(s*tilt),2*width/s,2*height/(s*tilt));ctx.restore();
@@ -559,6 +560,7 @@ function draw(){
 function frame(time){
   const seconds=prev?(time-prev)/1000:0;
   const flowing=flowTime!==null&&!solved;
+  if(!solved&&!document.hidden)contourTime+=Math.min(seconds,.05);
   lag+=Math.min(seconds,.05);
   prev=time;
   while(lag>=stepTime){update();lag-=stepTime;}

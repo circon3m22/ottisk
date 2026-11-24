@@ -117,7 +117,14 @@ class ContourField {
 const heightMap=new ContourField();
 
 class ContourPainting {
-  constructor(field){this.field=field;this.base=null;this.gates=[];this.lowerGates=[];this.gateSteps=14;}
+  constructor(field){
+    this.field=field;this.base=null;this.gates=[];this.lowerGates=[];this.gateSteps=14;
+    this.lineFrame=document.createElement('canvas');
+    this.lineContext=this.lineFrame.getContext('2d');
+    this.waveFrame=document.createElement('canvas');
+    this.waveContext=this.waveFrame.getContext('2d');
+    this.padding=0;
+  }
   prepare(){
     const f=this.field;
     this.base=this.region(0,0,f.nx,f.ny,0);
@@ -155,8 +162,7 @@ class ContourPainting {
     }
     lowCtx.putImageData(pixels,0,0);
     const canvas=document.createElement('canvas');canvas.width=(nx-1)*step;canvas.height=(ny-1)*step;
-    const c=canvas.getContext('2d');c.imageSmoothingEnabled=true;
-    c.drawImage(low,0,0,nx-1,ny-1,0,0,canvas.width,canvas.height);
+    const c=canvas.getContext('2d');
     const ox=f.left+i0*step,oy=f.top+j0*step;
     c.save();c.translate(-ox,-oy);
     // The same world-space paper fibres survive the opening of the seam.
@@ -172,7 +178,7 @@ class ContourPainting {
         (n%4===0?'rgba(133,146,121,.48)':'rgba(153,162,138,.37)');
       c.lineWidth=n%4===0?.95:.58;c.lineCap='round';c.lineJoin='round';c.stroke(path);
     }
-    return canvas;
+    return {paper:low,lines:canvas};
   }
   contour(values,nx,ny,level){
     const vertices=new Map(),step=this.field.step;
@@ -220,11 +226,78 @@ class ContourPainting {
     for(const v of vertices.values())trace(v);
     return path;
   }
-  draw(c,opening,secondary=0){
-    const f=this.field;c.drawImage(this.base,f.left,f.top);
+  draw(c,opening,secondary=0,time=null){
+    const f=this.field;
+    const regions=[{image:this.base,x:f.left,y:f.top}];
     const frame=Math.max(0,Math.min(this.gateSteps,Math.round(opening*this.gateSteps)));
-    if(frame)c.drawImage(this.gates[frame],f.left+this.gx*f.step,f.top+this.gy*f.step);
+    if(frame)regions.push({image:this.gates[frame],x:f.left+this.gx*f.step,y:f.top+this.gy*f.step});
     const lower=Math.max(0,Math.min(this.gateSteps,Math.round(secondary*this.gateSteps)));
-    if(lower&&this.lowerGates[lower])c.drawImage(this.lowerGates[lower],f.left+this.lx*f.step,f.top+this.ly*f.step);
+    if(lower&&this.lowerGates[lower])regions.push({image:this.lowerGates[lower],x:f.left+this.lx*f.step,y:f.top+this.ly*f.step});
+
+    const transform=c.getTransform();
+    if(time!==null){
+      const requiredPadding=Math.max(transform.a,transform.d)*6;
+      this.padding=Math.max(this.padding,Math.ceil(requiredPadding/32)*32);
+    }
+    const padding=time===null?0:this.padding;
+    const width=c.canvas.width+2*padding,height=c.canvas.height+2*padding;
+    this.resizeFrame(this.lineFrame,width,height);
+    const lines=this.lineContext;
+    lines.resetTransform();lines.clearRect(0,0,width,height);
+    lines.setTransform(transform.a,0,0,transform.d,transform.e+padding,transform.f+padding);
+    for(const {image,x,y} of regions){
+      const {paper,lines:contours}=image;
+      c.drawImage(paper,0,0,paper.width-1,paper.height-1,x,y,contours.width,contours.height);
+      if(image!==this.base)lines.clearRect(x,y,contours.width,contours.height);
+      lines.drawImage(contours,x,y);
+    }
+
+    c.save();
+    c.resetTransform();
+    if(time===null)c.drawImage(this.lineFrame,0,0);
+    else this.drawWaves(c,transform,time,padding);
+    c.restore();
+  }
+  resizeFrame(canvas,width,height){
+    if(canvas.width!==width||canvas.height!==height){
+      canvas.width=width;
+      canvas.height=height;
+    }
+  }
+  drawWaves(c,transform,time,padding){
+    const {width,height}=this.lineFrame;
+    this.resizeFrame(this.waveFrame,width,height);
+    const wave=this.waveContext;
+    wave.resetTransform();wave.clearRect(0,0,width,height);
+
+    // Warp only the engraving. Each strip interpolates the shifts at its
+    // edges so neighboring strips join, even over a moving gate patch.
+    const horizontal=y=>{
+      const worldY=(y-padding-transform.f)/transform.d;
+      return transform.a*(3.4*Math.sin(worldY/204-time*.53)+1.6*Math.sin(worldY/86+time*.38));
+    };
+    const vertical=x=>{
+      const worldX=(x-padding-transform.e)/transform.a;
+      return transform.d*(2.8*Math.sin(worldX/178+time*.47)+1.2*Math.sin(worldX/93-time*.34));
+    };
+    const rowHeight=Math.max(8,Math.round(transform.d*32));
+    let start=horizontal(0);
+    for(let y=0;y<height;y+=rowHeight){
+      const size=Math.min(rowHeight,height-y);
+      const end=horizontal(y+size),shear=(end-start)/size;
+      wave.setTransform(1,0,shear,1,start-y*shear,0);
+      wave.drawImage(this.lineFrame,0,y,width,size,0,y,width,size);
+      start=end;
+    }
+
+    const columnWidth=Math.max(8,Math.round(transform.a*32));
+    start=vertical(padding);
+    for(let x=padding;x<width-padding;x+=columnWidth){
+      const size=Math.min(columnWidth,width-padding-x);
+      const end=vertical(x+size),shear=(end-start)/size;
+      c.setTransform(1,shear,0,1,-padding,start-x*shear-padding);
+      c.drawImage(this.waveFrame,x,0,size,height,x,0,size,height);
+      start=end;
+    }
   }
 }
