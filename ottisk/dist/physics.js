@@ -21,7 +21,7 @@ function roundedLoop(corners) {
 
 const {worldSize,spawn,railStart,socket,plate,well,passage}=topoLayout;
 const rocks=[heightMap.collider];
-const limits = {left:34,right:worldSize.width-40,top:38,bottom:worldSize.height-40};
+const limits = {left:34,right:worldSize.width-40,top:38,bottom:worldSize.height-40,...topoLayout.playBounds};
 const requiredInk=.52;
 const barriers=[];
 const colliders=()=>rocks.concat(barriers);
@@ -315,6 +315,17 @@ class Drop {
     this.bodyRadius+=(radius*Math.sqrt(1+1.3*this.ink)-this.bodyRadius)*.045;
     const size=this.bodyRadius/radius;
     const desiredArea=this.restArea*size*size;
+    const clearance=this.bodyRadius*.7;
+    const oldCore=heightMap.coreContact(oldX,oldY,clearance).value;
+    const oldCenter={x:oldX,y:oldY};
+    // Keep the last clear center in paper coordinates. If a wall moves
+    // into the body, resolving against that point avoids accepting a
+    // little more penetration on every successive tick.
+    if(oldCore<=-.1||!this.clearCore)this.clearCore=heightMap.warp.onPaper(oldCenter);
+    const anchor=oldCore<=-.1?oldCenter:heightMap.warp.inRoom(this.clearCore);
+    const anchorCore=oldCore<=-.1?oldCore:heightMap.coreContact(anchor.x,anchor.y,clearance).value;
+    const origin=anchorCore<oldCore?anchor:oldCenter;
+    const allowed=Math.max(-.1,Math.min(oldCore,anchorCore));
     for(const object of weights)target=object.guidePush(this,target);
     const dx=target.x-this.x,dy=target.y-this.y,dist=Math.hypot(dx,dy);
     const speed=Math.hypot(this.vx,this.vy);
@@ -405,8 +416,6 @@ class Drop {
           object.loadX-=sx*.65;object.loadY-=sy*.65;this.center();
         }
       }
-      const clearance=this.bodyRadius*.7;
-      const allowed=Math.max(-.1,heightMap.coreContact(oldX,oldY,clearance).value);
       if(heightMap.coreContact(this.x,this.y,clearance).value>allowed){
         let cx=this.x,cy=this.y;
         // Resolve only the bank normal. The tangent remains free, so steering
@@ -422,9 +431,9 @@ class Drop {
         let low=0,high=1;
         for(let i=0;i<9;i++){
           const t=(low+high)*.5;
-          if(heightMap.coreContact(oldX+(cx-oldX)*t,oldY+(cy-oldY)*t,clearance).value<=allowed+.000001)low=t;else high=t;
+          if(heightMap.coreContact(origin.x+(cx-origin.x)*t,origin.y+(cy-origin.y)*t,clearance).value<=allowed+.000001)low=t;else high=t;
         }
-        const shiftX=oldX+(cx-oldX)*low-this.x,shiftY=oldY+(cy-oldY)*low-this.y;
+        const shiftX=origin.x+(cx-origin.x)*low-this.x,shiftY=origin.y+(cy-origin.y)*low-this.y;
         for(const p of ns){p.x+=shiftX;p.y+=shiftY;}
       }
     }

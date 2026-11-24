@@ -33,7 +33,7 @@ function chapterRail(rail){
   ctx.restore();
 }
 function chapterPath(path,density=4){
-  return path.filter((_,i)=>i%density===density-1).map(s=>({x:s.x+s.dx,y:s.y+s.dy}));
+  return path.filter((_,i)=>i%density===density-1).map(s=>({x:s.x+s.dx,y:s.y+s.dy,onPaper:true}));
 }
 
 class BracketMechanism extends PrintMechanisms {
@@ -352,15 +352,17 @@ class PaperCompanion {
     if(change<.035&&dist>22)this.stall+=stepTime;else this.stall=0;
   }
   walk(){
-    if(this.path[0]&&nearPoint(this,this.path[0],9)){
+    const inRoom=point=>point.onPaper?heightMap.warp.inRoom(point):point;
+    if(this.path[0]&&nearPoint(this,inRoom(this.path[0]),9)){
       this.safe={...this.path.shift()};
       this.stall=0;
     }
-    this.move(this.path[0]||this.safe);
+    this.move(inRoom(this.path[0]||this.safe));
     if(this.stall>1.15){
       // A section can close before the companion enters. Retreat to its last
       // reached point, on the same side of the obstruction, and try again.
-      this.x=this.safe.x;this.y=this.safe.y;this.vx=0;this.vy=0;this.stall=0;
+      const safe=inRoom(this.safe);
+      this.x=safe.x;this.y=safe.y;this.vx=0;this.vy=0;this.stall=0;
     }
   }
   draw(){

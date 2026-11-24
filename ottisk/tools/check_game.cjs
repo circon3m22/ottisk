@@ -25,6 +25,20 @@ const shared=`
 `;
 if(!selected||selected===1){console.log('LEVEL 1');
 verify(shared+`
+  go(-95,190);go(1280,190);go(590,-90);
+  check(drop.y<0&&camera.y<150,'opening room can be explored past its former rectangular bounds');
+  run(150,590,-225);
+  check(drop.y>-200&&heightMap.coreContact(drop.x,drop.y,drop.bodyRadius*.7).value<.5,'the animated ridge stops the mouse beyond the old bounds');
+  if(!reduced.matches){
+    const paperPoint={x:590,y:-180};
+    const restHeight=heightMap.samplePaper(paperPoint.x,paperPoint.y,0,0);
+    const first=heightMap.warp.inRoom(paperPoint);
+    heightMap.warp.update(contourTime+3);
+    const second=heightMap.warp.inRoom(paperPoint);
+    check(Math.hypot(first.x-second.x,first.y-second.y)>3&&Math.abs(heightMap.sample(second.x,second.y)-restHeight)<1e-7,
+      'a moved point still has the same collision height as the painted paper');
+  }
+  reset();started=true;
   check(inkPools.length===4,'ink is already scattered at reset');
   for(const p of [...heightMap.guides,[300,1530],[300,1640]])go(...p);
   run(500,600,1640);check(weight.position===0&&tutorial.stage==='ink','empty mouse gets mass lesson');

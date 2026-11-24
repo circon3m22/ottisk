@@ -82,7 +82,7 @@ function reset(){
   if(completion.open)completion.close();
   sound.silence();marks=[];flowTime=null;flowEnded=false;onPlateBefore=false;impactWait=0;
   shedding=false;shedTime=0;shedAmount=0;inkSoundWait=0;
-  elapsed=0;contourTime=0;
+  elapsed=0;contourTime=0;heightMap.warp.update(null);
   helpShown=false;helpButton?.setAttribute('aria-pressed','false');
   inkPools=topoLayout.inkSources.map(([x,y],i)=>new InkDrop(x,y,i*1.8,.24));
   mechanisms=levelNumber>=6?new laterChapters[levelNumber]():levelNumber>=3?new PrintMechanisms():null;
@@ -244,13 +244,17 @@ function advanceFlow(seconds){
 function update(){
   for(const m of marks)m.age+=stepTime;
   if(marks.length)marks=marks.filter(m=>m.age<m.life);
+  if(!solved){
+    contourTime+=stepTime;
+    heightMap.warp.update(reduced.matches?null:contourTime);
+  }
   if(solved||flowTime!==null)return;
   if(mechanisms?.rewind){
     mechanisms.recover();
     if(objective.textContent!==mechanisms.message)objective.textContent=mechanisms.message;
     elapsed+=stepTime;return;
   }
-  barriers.length=0;heightMap.opening=gateOpening;heightMap.secondaryOpening=lowerOpening;
+  barriers.length=0;heightMap.setOpenings(gateOpening,lowerOpening);
   updateInk();
   const scale=baseScale*camera.zoom;
   if(pointer){
@@ -287,7 +291,8 @@ function update(){
   const follow=portrait?.94:.49;
   const mid=worldSize.width/2;
   const focusX=started?mid+(drop.x-mid)*follow:spawn.x;
-  let focusY=started?clamp(drop.y+135,spawn.y+55,limits.bottom-200):spawn.y+55;
+  const minCameraY=levelNumber===1?limits.top+145:spawn.y+55;
+  let focusY=started?clamp(drop.y+135,minCameraY,limits.bottom-200):spawn.y+55;
   if(levelNumber===5&&mechanisms.dotFlash>=0&&mechanisms.dotFlash<4)focusY=1335;
   focusY+=sheetOffset();
   camera.x=approach(camera.x,focusX,2.7);camera.y=approach(camera.y,focusY,2.7);
@@ -517,7 +522,7 @@ function draw(){
   ctx=worldCtx;ctx.setTransform(dpr,0,0,dpr,0,0);ctx.fillStyle=paper;ctx.fillRect(0,0,width,height);
   const s=baseScale*camera.zoom;
   ctx.translate(width/2,height/2);ctx.scale(s,s*tilt);ctx.translate(-camera.x,-camera.y+sheetOffset());
-  terrain.draw(ctx,gateOpening,lowerOpening,reduced.matches?null:contourTime);
+  terrain.draw(ctx);
   if(activationBlend>0){
     ctx.save();ctx.globalCompositeOperation='multiply';ctx.fillStyle='rgba(119,171,194,'+(activationBlend*.26)+')';
     ctx.fillRect(camera.x-width/s,camera.y-height/(s*tilt),2*width/s,2*height/(s*tilt));ctx.restore();
@@ -560,7 +565,6 @@ function draw(){
 function frame(time){
   const seconds=prev?(time-prev)/1000:0;
   const flowing=flowTime!==null&&!solved;
-  if(!solved&&!document.hidden)contourTime+=Math.min(seconds,.05);
   lag+=Math.min(seconds,.05);
   prev=time;
   while(lag>=stepTime){update();lag-=stepTime;}

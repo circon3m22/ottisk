@@ -41,7 +41,10 @@ class PrintMechanisms {
   }
   channel(current,wanted,path){
     // A returning shutter waits for the body to leave its swept volume.
-    if(!wanted&&current>.1&&path.some(s=>heightMap.segmentDistance(drop.x,drop.y,s)<drop.bodyRadius+7))wanted=true;
+    if(!wanted&&current>.1){
+      const point=heightMap.warp.onPaper(drop);
+      if(path.some(s=>heightMap.segmentDistance(point.x,point.y,s)<drop.bodyRadius+7))wanted=true;
+    }
     return clamp(current+(wanted?1:-1)*stepTime*.9,0,1);
   }
   rollerPhase(index){return (this.time+topoLayout.rollers[index].offset)%6.4;}

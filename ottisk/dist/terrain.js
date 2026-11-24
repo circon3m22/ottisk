@@ -1,5 +1,58 @@
 'use strict';
 
+const terrainGateSteps=14;
+const terrainWaveStep=20;
+
+class TerrainWaveAxis {
+  constructor(min,size,amplitude,detail){
+    this.first=Math.floor(min/terrainWaveStep)-1;
+    this.values=new Float32Array(Math.ceil(size/terrainWaveStep)+4);
+    this.amplitude=amplitude;
+    this.detail=detail;
+    this.reach=amplitude+detail;
+  }
+  update(time){
+    for(let i=0;i<this.values.length;i++){
+      const point=(this.first+i)*terrainWaveStep;
+      this.values[i]=this.amplitude*Math.sin(point/72-time*.92)+this.detail*Math.sin(point/38+time*.66);
+    }
+  }
+  offset(point){
+    const index=point/terrainWaveStep-this.first;
+    if(index<=0)return this.values[0];
+    if(index>=this.values.length-1)return this.values[this.values.length-1];
+    const left=Math.floor(index);
+    return this.values[left]+(this.values[left+1]-this.values[left])*(index-left);
+  }
+}
+
+// Two shears preserve continuous passageways. Inverting them in reverse
+// order lets the collider read the same surface that the renderer bends.
+class TerrainWarp {
+  constructor(field){
+    this.horizontal=new TerrainWaveAxis(field.top,field.height,10,3);
+    this.vertical=new TerrainWaveAxis(field.left,field.width,8,2.5);
+    this.time=null;
+  }
+  update(time){
+    if(time===this.time)return;
+    this.time=time;
+    if(time===null)return;
+    this.horizontal.update(time);
+    this.vertical.update(-time*.9);
+  }
+  onPaper(point){
+    if(this.time===null)return point;
+    const y=point.y-this.vertical.offset(point.x);
+    return {x:point.x-this.horizontal.offset(y),y};
+  }
+  inRoom(point){
+    if(this.time===null)return point;
+    const x=point.x+this.horizontal.offset(point.y);
+    return {x,y:point.y+this.vertical.offset(x)};
+  }
+}
+
 // One scalar field is shared by the contour engraving and every collision.
 // Negative heights are walkable valleys; positive heights are green ridges.
 class ContourField {
@@ -7,6 +60,7 @@ class ContourField {
     this.step=6;this.left=-850;this.top=-850;
     this.nx=Math.ceil((topoLayout.worldSize.width+1700)/this.step)+1;this.ny=Math.ceil((topoLayout.worldSize.height+1700)/this.step)+1;
     this.width=(this.nx-1)*this.step;this.height=(this.ny-1)*this.step;
+    this.warp=new TerrainWarp(this);
     this.opening=0;this.secondaryOpening=0;this.segments=[];this.paths=[];this.guides=[];this.lowerGuides=[];this.bypassGuides=[];this.returnGuides=[];this.buckets=new Map();this.bucketSize=160;
     this.coreDirections=Array.from({length:16},(_,i)=>[Math.cos(i*Math.PI/8),Math.sin(i*Math.PI/8)]);
     this.gateBounds=topoLayout.gate.bounds;
@@ -84,7 +138,18 @@ class ContourField {
       }
     }
   }
-  sample(x,y,opening=this.opening,secondary=this.secondaryOpening){
+  setOpenings(opening,secondary){
+    this.opening=Math.round(opening*terrainGateSteps)/terrainGateSteps;
+    this.secondaryOpening=Math.round(secondary*terrainGateSteps)/terrainGateSteps;
+  }
+  sample(x,y){
+    if(this.warp.time!==null){
+      y-=this.warp.vertical.offset(x);
+      x-=this.warp.horizontal.offset(y);
+    }
+    return this.samplePaper(x,y,this.opening,this.secondaryOpening);
+  }
+  samplePaper(x,y,opening,secondary){
     let fx=Math.max(0,Math.min(this.nx-1.001,(x-this.left)/this.step));
     let fy=Math.max(0,Math.min(this.ny-1.001,(y-this.top)/this.step));
     const i=Math.floor(fx),j=Math.floor(fy);fx-=i;fy-=j;
@@ -116,17 +181,11 @@ class ContourField {
 }
 const heightMap=new ContourField();
 
-// In world units. The combined amplitudes also set the canvas overscan.
-const contourWaves={
-  horizontal:[{amplitude:21,length:59,speed:-1.22},{amplitude:7,length:29,speed:.86}],
-  vertical:[{amplitude:18,length:68,speed:1.28},{amplitude:6,length:33,speed:-.78}]
-};
-
 class ContourPainting {
   constructor(field){
-    this.field=field;this.base=null;this.gates=[];this.lowerGates=[];this.gateSteps=14;
-    this.lineFrame=document.createElement('canvas');
-    this.lineContext=this.lineFrame.getContext('2d');
+    this.field=field;this.base=null;this.gates=[];this.lowerGates=[];
+    this.surfaceFrame=document.createElement('canvas');
+    this.surfaceContext=this.surfaceFrame.getContext('2d');
     this.waveFrame=document.createElement('canvas');
     this.waveContext=this.waveFrame.getContext('2d');
     this.padding=0;
@@ -137,12 +196,12 @@ class ContourPainting {
     const b=f.gateBounds;
     this.gx=Math.floor((b.left-f.left)/f.step);this.gy=Math.floor((b.top-f.top)/f.step);
     this.gw=Math.ceil(b.width/f.step)+2;this.gh=Math.ceil(b.height/f.step)+2;
-    for(let i=1;i<=this.gateSteps;i++)this.gates[i]=this.region(this.gx,this.gy,this.gw,this.gh,i/this.gateSteps);
+    for(let i=1;i<=terrainGateSteps;i++)this.gates[i]=this.region(this.gx,this.gy,this.gw,this.gh,i/terrainGateSteps);
     if(topoLayout.lowerGate){
       const b=topoLayout.lowerGate.bounds;
       this.lx=Math.floor((b.left-f.left)/f.step);this.ly=Math.floor((b.top-f.top)/f.step);
       this.lw=Math.ceil(b.width/f.step)+2;this.lh=Math.ceil(b.height/f.step)+2;
-      for(let i=1;i<=this.gateSteps;i++)this.lowerGates[i]=this.region(this.lx,this.ly,this.lw,this.lh,0,i/this.gateSteps);
+      for(let i=1;i<=terrainGateSteps;i++)this.lowerGates[i]=this.region(this.lx,this.ly,this.lw,this.lh,0,i/terrainGateSteps);
     }
   }
   color(h,gx,gy){
@@ -161,14 +220,15 @@ class ContourPainting {
       const source=(j+j0)*f.nx+i+i0,value=f.closed[source]+f.delta[source]*opening+f.lowerDelta[source]*secondary;
       values[j*nx+i]=value;
       const x=f.left+(i+i0)*step,y=f.top+(j+j0)*step;
-      const gx=(f.sample(x+3,y,opening,secondary)-f.sample(x-3,y,opening,secondary))/6;
-      const gy=(f.sample(x,y+3,opening,secondary)-f.sample(x,y-3,opening,secondary))/6;
+      const gx=(f.samplePaper(x+3,y,opening,secondary)-f.samplePaper(x-3,y,opening,secondary))/6;
+      const gy=(f.samplePaper(x,y+3,opening,secondary)-f.samplePaper(x,y-3,opening,secondary))/6;
       const c=this.color(value,gx,gy),q=(j*nx+i)*4;
       pixels.data[q]=c[0];pixels.data[q+1]=c[1];pixels.data[q+2]=c[2];pixels.data[q+3]=255;
     }
     lowCtx.putImageData(pixels,0,0);
     const canvas=document.createElement('canvas');canvas.width=(nx-1)*step;canvas.height=(ny-1)*step;
     const c=canvas.getContext('2d');
+    c.drawImage(low,0,0,nx-1,ny-1,0,0,canvas.width,canvas.height);
     const ox=f.left+i0*step,oy=f.top+j0*step;
     c.save();c.translate(-ox,-oy);
     // The same world-space paper fibres survive the opening of the seam.
@@ -184,7 +244,7 @@ class ContourPainting {
         (n%4===0?'rgba(133,146,121,.48)':'rgba(153,162,138,.37)');
       c.lineWidth=n%4===0?.95:.58;c.lineCap='round';c.lineJoin='round';c.stroke(path);
     }
-    return {paper:low,lines:canvas};
+    return canvas;
   }
   contour(values,nx,ny,level){
     const vertices=new Map(),step=this.field.step;
@@ -232,38 +292,31 @@ class ContourPainting {
     for(const v of vertices.values())trace(v);
     return path;
   }
-  draw(c,opening,secondary=0,time=null){
+  draw(c){
     const f=this.field;
     const regions=[{image:this.base,x:f.left,y:f.top}];
-    const frame=Math.max(0,Math.min(this.gateSteps,Math.round(opening*this.gateSteps)));
+    const frame=Math.round(f.opening*terrainGateSteps);
     if(frame)regions.push({image:this.gates[frame],x:f.left+this.gx*f.step,y:f.top+this.gy*f.step});
-    const lower=Math.max(0,Math.min(this.gateSteps,Math.round(secondary*this.gateSteps)));
+    const lower=Math.round(f.secondaryOpening*terrainGateSteps);
     if(lower&&this.lowerGates[lower])regions.push({image:this.lowerGates[lower],x:f.left+this.lx*f.step,y:f.top+this.ly*f.step});
 
+    if(f.warp.time===null){
+      for(const {image,x,y} of regions)c.drawImage(image,x,y);
+      return;
+    }
     const transform=c.getTransform();
-    if(time!==null){
-      const reachX=contourWaves.horizontal.reduce((sum,wave)=>sum+wave.amplitude,0);
-      const reachY=contourWaves.vertical.reduce((sum,wave)=>sum+wave.amplitude,0);
-      const requiredPadding=Math.max(transform.a*reachX,transform.d*reachY)+2;
-      this.padding=Math.max(this.padding,Math.ceil(requiredPadding/32)*32);
-    }
-    const padding=time===null?0:this.padding;
+    const requiredPadding=Math.max(transform.a*f.warp.horizontal.reach,transform.d*f.warp.vertical.reach)+2;
+    this.padding=Math.max(this.padding,Math.ceil(requiredPadding/32)*32);
+    const padding=this.padding;
     const width=c.canvas.width+2*padding,height=c.canvas.height+2*padding;
-    this.resizeFrame(this.lineFrame,width,height);
-    const lines=this.lineContext;
-    lines.resetTransform();lines.clearRect(0,0,width,height);
-    lines.setTransform(transform.a,0,0,transform.d,transform.e+padding,transform.f+padding);
-    for(const {image,x,y} of regions){
-      const {paper,lines:contours}=image;
-      c.drawImage(paper,0,0,paper.width-1,paper.height-1,x,y,contours.width,contours.height);
-      if(image!==this.base)lines.clearRect(x,y,contours.width,contours.height);
-      lines.drawImage(contours,x,y);
-    }
+    this.resizeFrame(this.surfaceFrame,width,height);
+    const surface=this.surfaceContext;
+    surface.resetTransform();surface.clearRect(0,0,width,height);
+    surface.setTransform(transform.a,0,0,transform.d,transform.e+padding,transform.f+padding);
+    for(const {image,x,y} of regions)surface.drawImage(image,x,y);
 
     c.save();
-    c.resetTransform();
-    if(time===null)c.drawImage(this.lineFrame,0,0);
-    else this.drawWaves(c,transform,time,padding);
+    this.drawWaves(c,transform,padding);
     c.restore();
   }
   resizeFrame(canvas,width,height){
@@ -272,35 +325,36 @@ class ContourPainting {
       canvas.height=height;
     }
   }
-  drawWaves(c,transform,time,padding){
-    const {width,height}=this.lineFrame;
+  drawWaves(c,transform,padding){
+    const {width,height}=this.surfaceFrame;
+    const warp=this.field.warp;
     this.resizeFrame(this.waveFrame,width,height);
     const wave=this.waveContext;
     wave.resetTransform();wave.clearRect(0,0,width,height);
 
-    // Warp only the engraving. Each strip interpolates the shifts at its
-    // edges so neighboring strips join, even over a moving gate patch.
-    const displacement=(waves,point)=>waves.reduce((sum,{amplitude,length,speed})=>
-      sum+amplitude*Math.sin(point/length+time*speed),0);
-    const horizontal=y=>transform.a*displacement(contourWaves.horizontal,(y-padding-transform.f)/transform.d);
-    const vertical=x=>transform.d*displacement(contourWaves.vertical,(x-padding-transform.e)/transform.a);
-    const rowHeight=Math.max(8,Math.round(transform.d*21));
-    let start=horizontal(0);
-    for(let y=0;y<height;y+=rowHeight){
-      const size=Math.min(rowHeight,height-y);
-      const end=horizontal(y+size),shear=(end-start)/size;
-      wave.setTransform(1,0,shear,1,start-y*shear,0);
-      wave.drawImage(this.lineFrame,0,y,width,size,0,y,width,size);
-      start=end;
-    }
+    this.paintStrips(warp.horizontal,0,height,transform.d,transform.f+padding,transform.a,(y,size,shear,shift)=>{
+      wave.setTransform(1,0,shear,1,shift,0);
+      wave.drawImage(this.surfaceFrame,0,y,width,size,0,y,width,size);
+    });
 
-    const columnWidth=Math.max(8,Math.round(transform.a*21));
-    start=vertical(padding);
-    for(let x=padding;x<width-padding;x+=columnWidth){
-      const size=Math.min(columnWidth,width-padding-x);
-      const end=vertical(x+size),shear=(end-start)/size;
-      c.setTransform(1,shear,0,1,-padding,start-x*shear-padding);
+    this.paintStrips(warp.vertical,padding,width-padding,transform.a,transform.e+padding,transform.d,(x,size,shear,shift)=>{
+      c.setTransform(1,shear,0,1,-padding,shift-padding);
       c.drawImage(this.waveFrame,x,0,size,height,x,0,size,height);
+    });
+  }
+  paintStrips(axis,from,limit,scale,origin,shiftScale,paint){
+    // Snap strip edges to device pixels to avoid seams. The grid itself
+    // starts at the same paper coordinates as the collision transform.
+    const spacing=scale*terrainWaveStep;
+    let cell=Math.floor((from-origin)/spacing);
+    let start=axis.offset((from-origin)/scale)*shiftScale;
+    while(from<limit){
+      const to=Math.min(limit,Math.round(origin+(++cell)*spacing));
+      if(to<=from)continue;
+      const end=axis.offset((to-origin)/scale)*shiftScale;
+      const size=to-from,shear=(end-start)/size;
+      paint(from,size,shear,start-from*shear);
+      from=to;
       start=end;
     }
   }
