@@ -95,12 +95,20 @@ class PrintMechanisms {
       if(drop.y>2960&&this.revealAge<0){this.revealAge=0;sound.play('printer');}
       if(this.revealAge>=0)this.revealAge+=stepTime;
     }else if(levelNumber===5){
-      const first=cupLoads[0]>=topoLayout.cupRequired,second=Math.hypot(drop.x-plate.x,drop.y-plate.y)<44&&drop.ink>=topoLayout.bodyRequired;
-      const equilibrium=Math.abs(cupLoads[0]-drop.ink)<=topoLayout.balanceTolerance;
-      this.balanceCharge=clamp(this.balanceCharge+(first&&second&&equilibrium?stepTime:-stepTime*3),0,.8);
-      this.balanceReady=first&&second&&equilibrium&&this.balanceCharge>=.8;
-      gateOpening=this.channel(gateOpening,first,heightMap.gatePath);
-      if(this.balanceReady&&this.dotFlash<0){this.dotFlash=0;sound.play('circuit');}
+      const first=cupLoads[0]>=topoLayout.cupRequired;
+      if(!this.balanceReady){
+        const second=Math.hypot(drop.x-plate.x,drop.y-plate.y)<44&&drop.ink>=topoLayout.bodyRequired;
+        const equilibrium=Math.abs(cupLoads[0]-drop.ink)<=topoLayout.balanceTolerance;
+        this.balanceCharge=clamp(this.balanceCharge+(first&&second&&equilibrium?stepTime:-stepTime*3),0,.8);
+        // The balance holds the latch. The mouse can then step off the cup
+        // and walk all the way to the iris while it opens.
+        if(this.balanceCharge>=.8){
+          this.balanceReady=true;
+          this.dotFlash=0;
+          sound.play('circuit');
+        }
+      }
+      gateOpening=this.channel(gateOpening,first||this.balanceReady,heightMap.gatePath);
       if(this.dotFlash>=0)this.dotFlash+=stepTime;
       this.setExit(this.balanceReady);
     }
@@ -124,11 +132,11 @@ class PrintMechanisms {
       if(drop.y>2320)return drop.ink>=requiredInk?'Удерживайте тяжёлым телом створку, пока не защёлкнется.':'Створке нужна масса. Соберите чернила в углублениях.';
       return 'Лист движется. Идите от углубления к углублению после прохода ролика.';
     }
-    if(this.balanceReady)return 'Знак проявился. Выход рядом со второй чашей.';
+    if(this.balanceReady)return 'Ирис открывается справа от нижней чаши.';
     if(cupLoads[0]<topoLayout.cupRequired)return 'Оставьте часть запаса в верхней чаше. Обеим точкам нужен вес.';
     if(drop.y<1450)return 'Верхняя точка удерживается чернилами. Перенесите оставшийся вес вниз.';
     if(drop.ink>=topoLayout.bodyRequired&&Math.hypot(drop.x-plate.x,drop.y-plate.y)<100){
-      if(Math.abs(cupLoads[0]-drop.ink)<=topoLayout.balanceTolerance)return 'Вес совпадает. Удерживайте равновесие на второй чаше.';
+      if(Math.abs(cupLoads[0]-drop.ink)<=topoLayout.balanceTolerance)return 'Останьтесь в нижней чаше, пока заполняется ободок.';
       return cupLoads[0]>drop.ink?'Верхняя чаша тяжелее. Верните часть её запаса в тело.':'Нижняя чаша тяжелее. Часть вашего запаса нужна наверху.';
     }
     return drop.ink<topoLayout.bodyRequired?'Тела слишком мало для второй точки. Вернитесь и заберите часть запаса.':'Нажмите вторую чашу своим телом. Чернила в первой должны остаться.';
@@ -145,7 +153,7 @@ class PrintMechanisms {
       if(this.shutterLatched)return drop.ink>=requiredInk?'Лист остановлен вашим весом.':'Тормоз отпущен. Створка скоро закроется.';
       return drop.y>2320?'Створку удерживает тяжёлый прижим.':'Пройдите испорченную строку между прижимами.';
     }
-    if(this.balanceReady)return 'Обе точки уравновешены.';
+    if(this.balanceReady)return 'Равновесие зафиксировано. Идите к выходу.';
     if(cupLoads[0]<topoLayout.cupRequired)return 'Две чаши удерживают выход закрытым.';
     if(drop.y<1450)return 'Верхняя точка получила вес.';
     if(drop.ink<topoLayout.bodyRequired)return 'Нижняя точка не набрала необходимый вес.';

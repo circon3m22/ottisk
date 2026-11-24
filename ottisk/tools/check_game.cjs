@@ -137,21 +137,6 @@ verify(shared+`
   check(!mechanisms.rewind&&Math.abs(drop.ink-.08)<1e-9,'expired shutter recovery preserves the remaining body ink');
 `,load(4));}
 
-if(!selected||selected===5){console.log('LEVEL 5');
-verify(shared+`
-  go(850,925);go(850,815);shedding=true;run(130,850,815);run(30,850,705);shedding=false;go(850,705);run(250);
-  check(cupLoads[0]>=topoLayout.cupRequired&&drop.ink>=topoLayout.bodyRequired,'one stock can support the first cup and the remaining body');
-  go(600,1010);for(const p of curve(topoLayout.gate.points))go(...p);go(850,1820);run(200);
-  check(mechanisms.balanceReady&&unlocked,'separated first ink cup and second body cup hold the exit');
-  go(well.x,well.y);finish();
-  reset();inkPools=[new InkDrop(850,850,0,.6)];drop=new Drop(850,1820,.16);target={x:850,y:1820};run(100);
-  check(!unlocked,'overfilling the first cup leaves too little body mass for the second');
-  reset();inkPools=[new InkDrop(850,850,0,.28)];drop=new Drop(850,1820,.48);target={x:850,y:1820};run(150);
-  check(!unlocked,'both thresholds alone are insufficient without equilibrium');
-  inkPools=[new InkDrop(850,850,0,.6)];
-  drop=new Drop(850,850,.16);target={x:850,y:850};run(80);
-  check(drop.ink>.4,'a poor allocation can be reversed by collecting from the first cup');
-`,load(5));}
 const pointerRoute=`
   const steer=(x,y)=>{
     const scale=baseScale*camera.zoom;
@@ -164,6 +149,27 @@ const pointerRoute=`
     if(flowTime===null&&Math.hypot(drop.x-x,drop.y-y)>14)throw Error('Pointer route '+x+','+y+' blocked at '+drop.x.toFixed(1)+','+drop.y.toFixed(1));
   };
 `;
+
+if(!selected||selected===5){console.log('LEVEL 5');
+verify(shared+pointerRoute+`
+  go(850,925);go(850,815);shedding=true;run(130,850,815);run(30,850,705);shedding=false;go(850,705);run(250);
+  check(cupLoads[0]>=topoLayout.cupRequired&&drop.ink>=topoLayout.bodyRequired,'one stock can support the first cup and the remaining body');
+  go(600,1010);for(const p of curve(topoLayout.gate.points))go(...p);go(850,1820);
+  run(35,plate.x,plate.y);
+  check(!unlocked,'the balanced cups must be held before the exit opens');
+  for(let i=0;i<150&&!unlocked;i++)update();
+  check(mechanisms.balanceReady&&unlocked,'holding the balanced cups triggers the exit');
+  steer(well.x,well.y);step(250);
+  check(Math.hypot(drop.x-plate.x,drop.y-plate.y)>44,'the mouse can leave the lower cup immediately after activation');
+  finish();
+  reset();inkPools=[new InkDrop(850,850,0,.6)];drop=new Drop(850,1820,.16);target={x:850,y:1820};run(100);
+  check(!unlocked,'overfilling the first cup leaves too little body mass for the second');
+  reset();inkPools=[new InkDrop(850,850,0,.28)];drop=new Drop(850,1820,.48);target={x:850,y:1820};run(150);
+  check(!unlocked,'both thresholds alone are insufficient without equilibrium');
+  inkPools=[new InkDrop(850,850,0,.6)];
+  drop=new Drop(850,850,.16);target={x:850,y:850};run(80);
+  check(drop.ink>.4,'a poor allocation can be reversed by collecting from the first cup');
+`,load(5));}
 
 if(!selected||selected===6){console.log('LEVEL 6');
 verify(shared+pointerRoute+`
