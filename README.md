@@ -26,10 +26,13 @@ python -m http.server 8041 --directory ottisk/dist
 python -m pip install pillow numpy imageio-ffmpeg
 ```
 
-Минутное вступление моделируется и анимируется вручную в Blender 5.3. Сцена хранится в `ottisk/exports/opening-scene.blend`. Для рендера используется Cycles с OptiX.
+Актуальная заставка длится 90 секунд и моделируется вручную в Blender 5.3. Постановка включает рабочий стол, руку с непрерывной поверхностью, подробный механизм, макропечать, повреждение всего листа и слияние капель без глаз. [Сценарий и инструкция рендера](docs/opening-90s.md).
+
+Сцена хранится в `ottisk/exports/opening-90s.blend`, видео — `ottisk/exports/opening-90s.mp4`. Для рендера используется Cycles с OptiX. Прежняя минутная версия сохранена отдельно.
 
 ```sh
-python ottisk/tools/render_intro60.py --assets
-blender --background --python ottisk/tools/blender_opening.py -- --render
-python ottisk/tools/assemble_opening.py
+python ottisk/tools/opening90_assets.py
+blender --background --python ottisk/tools/blender_opening90.py -- --preview
+blender --background --python ottisk/tools/render_opening90.py -- --start 1 --end 2160
+python ottisk/tools/assemble_opening90.py
 ```
